@@ -2,8 +2,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Control.Effect.Coroutine (
     Coroutine, Iterator (..), EffectCoroutine, runCoroutine, suspend
