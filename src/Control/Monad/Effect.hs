@@ -27,12 +27,12 @@ module Control.Monad.Effect (
     -- > runState :: Effect (State s ': es) a -> s -> Effect es (s, a)
     -- > runState =
     -- >     handle (\output state -> return (state, output))
-    -- >     $ eliminate (\continue (State transform) state ->
-    -- >         let (state', output) = transform state
-    -- >         in continue output state')
-    -- >     $ relay (\continue effect state -> do
-    -- >         output <- send effect
-    -- >         continue output state)
+    -- >     $ eliminate (\(State transform) state ->
+    -- >         let (state', continue) = transform state
+    -- >         in continue state')
+    -- >     $ relay (\effect state -> do
+    -- >         continue <- sendEffect effect
+    -- >         return (continue state))
     --
     -- As an analogy to monads, `handle` lets you specify the return function,
     -- while `eliminate`, `intercept`, and `relay` let you specify the bind
@@ -92,15 +92,15 @@ data Handler es a = Handler (Union es a -> a)
 handle :: (a -> b) -> Handler es b -> Effect es a -> b
 handle point (Handler bind) (Effect f) = f point bind
 
--- | Provides a way to completely handle an effect.
--- The given function is passed a continuation and an effect value.
--- The universally quantified variable @c@ can be thought of as the type of
--- value that the user code is expecting to receive from a call to `send`.
+-- | Provides a way to completely handle an effect. The given function is passed
+-- an effect value parameterized by the output type (i.e. the return type of
+-- `handle`).
 eliminate :: (e b -> b) -> Handler es b -> Handler (e ': es) b
 eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 
--- | Provides a way to handle an effect without eliminating it.
--- The given function is passed a continuation and an effect value.
+-- | Provides a way to handle an effect without eliminating it. The given
+-- function is passed an effect value parameterized by the output type (i.e. the
+-- return type of `handle`).
 intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
 intercept bind (Handler pass) = Handler $ \u -> maybe (pass u) bind (project u)
 
