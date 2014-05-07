@@ -27,8 +27,8 @@ yield = send Yield
 
 fork :: EffectThread es => Effect es () -> Effect es ()
 fork child = do
-    parent <- send Fork
-    unless parent $ do
+    isParent <- send Fork
+    unless isParent $ do
         child
         abort
 
