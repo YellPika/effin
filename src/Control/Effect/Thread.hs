@@ -11,7 +11,7 @@ module Control.Effect.Thread (
 ) where
 
 import qualified Control.Concurrent as IO
-import Control.Monad (void)
+import Control.Monad (void, unless)
 import Control.Effect.Monad (runMonad)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
@@ -28,9 +28,9 @@ yield = send Yield
 fork :: EffectThread es => Effect es () -> Effect es ()
 fork child = do
     parent <- send Fork
-    if parent
-    then return ()
-    else child >> abort
+    unless parent $ do
+        child
+        abort
 
 abort :: EffectThread es => Effect es ()
 abort = send Abort
