@@ -39,7 +39,7 @@ abort = send Abort
 -- | Executes a threaded computation synchronously.
 -- All threads exit when the main thread exits.
 runMain :: Effect (Thread ': es) () -> Effect es ()
-runMain = run [] . runThread'
+runMain = run [] . reifyThreads
   where
     run xs thread = do
         result <- thread
@@ -63,7 +63,7 @@ runMain = run [] . runThread'
 -- | Executes a threaded computation synchronously.
 -- Does not complete until all threads have exited.
 runSync :: Effect (Thread ': es) () -> Effect es ()
-runSync = run . (:[]) . runThread'
+runSync = run . (:[]) . reifyThreads
   where
     run [] = return ()
     run (thread:xs) = do
@@ -75,7 +75,7 @@ runSync = run . (:[]) . runThread'
 
 -- | Executes a threaded computation asynchronously.
 runAsync :: Effect '[Thread, IO] () -> IO ()
-runAsync = run . runThread'
+runAsync = run . reifyThreads
   where
     run thread = do
         result <- runMonad thread
@@ -88,18 +88,21 @@ runAsync = run . runThread'
                 void $ IO.forkIO $ run x
                 run y
 
-data Thread' es
-    = Yield' (Effect es (Thread' es))
-    | Fork' (Effect es (Thread' es)) (Effect es (Thread' es))
+data ThreadAST es
+    = Yield' (Effect es (ThreadAST es))
+    | Fork' (Effect es (ThreadAST es)) (Effect es (ThreadAST es))
     | Abort'
 
-runThread' :: Effect (Thread ': es) () -> Effect es (Thread' es)
-runThread' =
+-- Converts a threaded computation into a corresponding AST. This allows
+-- different backends to interpret calls to fork/yield/abort as they please. See
+-- the implementations of runAsync, runSync, and runMain.
+reifyThreads :: Effect (Thread ': es) () -> Effect es (ThreadAST es)
+reifyThreads =
     handle (\() -> return Abort')
     $ eliminate bind
     $ defaultRelay
   where
-    bind :: (c -> Effect es (Thread' es)) -> Thread c -> Effect es (Thread' es)
+    bind :: (c -> Effect es (ThreadAST es)) -> Thread c -> Effect es (ThreadAST es)
     bind _ Abort = return Abort'
     bind k Yield = return $ Yield' (k ())
     bind k Fork = return $ Fork' (k False) (k True)
