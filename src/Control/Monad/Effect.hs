@@ -45,7 +45,6 @@ module Control.Monad.Effect (
 ) where
 
 import Control.Applicative (Applicative (..))
-import Control.Monad (ap, liftM)
 import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnion)
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
@@ -55,11 +54,13 @@ data Effect es a
     | Effect (Union es (Effect es a))
 
 instance Functor (Effect es) where
-    fmap = liftM
+    fmap f (Return x) = Return (f x)
+    fmap f (Effect x) = Effect (fmap (fmap f) x)
 
 instance Applicative (Effect es) where
-    pure = return
-    (<*>) = ap
+    pure = Return
+    Return f <*> x = fmap f x
+    Effect f <*> x = Effect (fmap (<*> x) f)
 
 instance Monad (Effect es) where
     return = Return
