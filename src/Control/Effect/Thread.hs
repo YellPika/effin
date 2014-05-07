@@ -33,7 +33,7 @@ abort = send Abort
 -- | Executes a threaded computation synchronously.
 -- All threads exit when the main thread exits.
 runMain :: Effect (Thread ': es) () -> Effect es ()
-runMain = run [] . reifyThreads
+runMain = run [] . toAST
   where
     run auxThreads thread = do
         result <- thread
@@ -57,7 +57,7 @@ runMain = run [] . reifyThreads
 -- | Executes a threaded computation synchronously.
 -- Does not complete until all threads have exited.
 runSync :: Effect (Thread ': es) () -> Effect es ()
-runSync = run . (:[]) . reifyThreads
+runSync = run . (:[]) . toAST
   where
     run [] = return ()
     run (thread:xs) = do
@@ -69,7 +69,7 @@ runSync = run . (:[]) . reifyThreads
 
 -- | Executes a threaded computation asynchronously.
 runAsync :: Effect '[Thread, Lift IO] () -> IO ()
-runAsync = run . reifyThreads
+runAsync = run . toAST
   where
     run thread = do
         result <- runLift thread
@@ -90,8 +90,8 @@ data ThreadAST es
 -- Converts a threaded computation into its corresponding AST. This allows
 -- different backends to interpret calls to fork/yield/abort as they please. See
 -- the implementations of runAsync, runSync, and runMain.
-reifyThreads :: Effect (Thread ': es) () -> Effect es (ThreadAST es)
-reifyThreads =
+toAST :: Effect (Thread ': es) () -> Effect es (ThreadAST es)
+toAST =
     handle (\() -> return AbortAST)
     $ eliminate (\thread ->
         case thread of
