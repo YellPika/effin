@@ -73,9 +73,9 @@ runEffect (Side u) = absurdUnion u
 send :: Member e es => e (Effect es a) -> Effect es a
 send = Side . inject
 
----- | A handler for an effectful computation.
----- Combined with 'handle', allows one to convert a computation
----- parameterized by the effect list @es@ to a value of type @a@.
+-- | A handler for an effectful computation.
+-- Combined with 'handle', allows one to convert a computation
+-- parameterized by the effect list @es@ to a value of type @a@.
 data Handler es a = Handler (Union es a -> a)
 
 -- | @handle p h@ transforms an effect into a value of type @b@.
