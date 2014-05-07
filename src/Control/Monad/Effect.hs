@@ -50,7 +50,9 @@ import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnio
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
-data Effect es a = Done a | Side (Union es (Effect es a))
+data Effect es a
+    = Return a
+    | Effect (Union es (Effect es a))
 
 instance Functor (Effect es) where
     fmap = liftM
@@ -60,18 +62,18 @@ instance Applicative (Effect es) where
     (<*>) = ap
 
 instance Monad (Effect es) where
-    return = Done
-    Done x >>= f = f x
-    Side x >>= f = Side (fmap (>>= f) x)
+    return = Return
+    Return x >>= f = f x
+    Effect x >>= f = Effect (fmap (>>= f) x)
 
 -- | Converts an computation that produces no effects into a regular value.
 runEffect :: Effect '[] a -> a
-runEffect (Done x) = x
-runEffect (Side u) = absurdUnion u
+runEffect (Return x) = x
+runEffect (Effect u) = absurdUnion u
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
 send :: Member e es => e (Effect es a) -> Effect es a
-send = Side . inject
+send = Effect . inject
 
 -- | A handler for an effectful computation.
 -- Combined with 'handle', allows one to convert a computation
@@ -88,8 +90,8 @@ data Handler es a = Handler (Union es a -> a)
 handle :: (a -> b) -> Handler es b -> Effect es a -> b
 handle point (Handler bind) = run
   where
-    run (Done x) = point x
-    run (Side x) = bind (fmap run x)
+    run (Return x) = point x
+    run (Effect x) = bind (fmap run x)
 
 -- | Provides a way to completely handle an effect.
 -- The given function is passed a continuation and an effect value.
