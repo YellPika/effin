@@ -13,7 +13,7 @@ module Control.Effect.Thread (
 import qualified Control.Concurrent as IO
 import Control.Applicative ((<$>))
 import Control.Monad (void)
-import Control.Effect.Monad (runMonad)
+import Control.Effect.Lift (Lift, runLift)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
 data Thread a = Yield a | Fork a a | Abort
@@ -68,11 +68,11 @@ runSync = run . (:[]) . reifyThreads
             ForkAST child parent -> run (child:xs ++ [parent])
 
 -- | Executes a threaded computation asynchronously.
-runAsync :: Effect '[Thread, IO] () -> IO ()
+runAsync :: Effect '[Thread, Lift IO] () -> IO ()
 runAsync = run . reifyThreads
   where
     run thread = do
-        result <- runMonad thread
+        result <- runLift thread
         case result of
             AbortAST -> return ()
             YieldAST k -> do

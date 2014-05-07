@@ -18,7 +18,6 @@ library
                        Control.Effect.Exception,
                        Control.Effect.Lift,
                        Control.Effect.List,
-                       Control.Effect.Monad,
                        Control.Effect.Reader,
                        Control.Effect.Resource,
                        Control.Effect.State,

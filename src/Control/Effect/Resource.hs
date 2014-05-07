@@ -9,7 +9,7 @@ module Control.Effect.Resource where
 
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
-import Control.Effect.Monad (EffectMonad, lift)
+import Control.Effect.Lift (EffectLift, lift)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
 data Resource (m :: * -> *) a = Resource a (m ())
@@ -23,7 +23,7 @@ type family ResourceType es where
 register :: EffectResource m es => m () -> Effect es ()
 register = send . Resource (return ())
 
-runResource :: EffectMonad m es => Effect (Resource m ': es) a -> Effect es a
+runResource :: EffectLift m es => Effect (Resource m ': es) a -> Effect es a
 runResource effect = do
     (output, destructors) <- run effect
     lift (sequence_ destructors)
