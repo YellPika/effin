@@ -6,11 +6,12 @@
 
 module Control.Effect.Thread (
     Thread, EffectThread,
-    runSync, runAsync,
+    runMain, runSync, runAsync,
     yield, fork, abort,
 ) where
 
 import qualified Control.Concurrent as IO
+import Control.Applicative ((<$>))
 import Control.Monad (void, unless)
 import Control.Effect.Monad (runMonad)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
@@ -35,6 +36,32 @@ fork child = do
 abort :: EffectThread es => Effect es ()
 abort = send Abort
 
+-- | Executes a threaded computation synchronously.
+-- All threads exit when the main thread exits.
+runMain :: Effect (Thread ': es) () -> Effect es ()
+runMain = run [] . runThread'
+  where
+    run xs thread = do
+        result <- thread
+        case result of
+            Abort' -> return ()
+            Yield' x -> do
+                xs' <- runAll xs
+                run xs' x
+            Fork' x y -> do
+                xs' <- runAll [x]
+                run (xs ++ xs') y
+
+    runAll [] = return []
+    runAll (thread:xs) = do
+        result <- thread
+        case result of
+            Abort' -> runAll xs
+            Yield' x -> (x:) <$> runAll xs
+            Fork' x y -> (y:) <$> runAll (x:xs)
+
+-- | Executes a threaded computation synchronously.
+-- Does not complete until all threads have exited.
 runSync :: Effect (Thread ': es) () -> Effect es ()
 runSync = run . (:[]) . runThread'
   where
@@ -46,6 +73,7 @@ runSync = run . (:[]) . runThread'
             Yield' x -> run (xs ++ [x])
             Fork' x y -> run (x:xs ++ [y])
 
+-- | Executes a threaded computation asynchronously.
 runAsync :: Effect '[Thread, IO] () -> IO ()
 runAsync = run . runThread'
   where
