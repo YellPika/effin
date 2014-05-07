@@ -47,9 +47,9 @@ censor f =
     $ intercept (\(Writer l k) -> tell (f l) >> k)
     $ defaultRelay
 
-runWriter :: EffectWriter w es => Effect (Writer w ': es) a -> Effect es (a, w)
+runWriter :: Monoid w => Effect (Writer w ': es) a -> Effect es (a, w)
 runWriter =
-    handle point
+    handle (\x -> return (x, mempty))
     $ eliminate bind
     $ defaultRelay
 
@@ -57,4 +57,4 @@ point :: EffectWriter w es => a -> Effect es (a, w)
 point x = return (x, mempty)
 
 bind :: Monoid w => Writer w (Effect es (b, w)) -> Effect es (b, w)
-bind (Writer l k) = second (`mappend` l) <$> k
+bind (Writer l k) = second (mappend l) <$> k
