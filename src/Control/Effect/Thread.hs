@@ -87,7 +87,7 @@ data ThreadAST es
     | ForkAST (Effect es (ThreadAST es)) (Effect es (ThreadAST es))
     | AbortAST
 
--- Converts a threaded computation into a corresponding AST. This allows
+-- Converts a threaded computation into its corresponding AST. This allows
 -- different backends to interpret calls to fork/yield/abort as they please. See
 -- the implementations of runAsync, runSync, and runMain.
 reifyThreads :: Effect (Thread ': es) () -> Effect es (ThreadAST es)
