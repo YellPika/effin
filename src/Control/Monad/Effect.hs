@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -51,9 +50,7 @@ import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnio
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
-data Effect es a where
-    Done :: a -> Effect es a
-    Side :: Union es (Effect es a) -> Effect es a
+data Effect es a = Done a | Side (Union es (Effect es a))
 
 instance Functor (Effect es) where
     fmap = liftM
