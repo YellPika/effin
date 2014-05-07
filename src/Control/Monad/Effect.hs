@@ -118,7 +118,7 @@ relay bind = Handler $ \k u ->
 defaultRelay :: Handler es (Effect es b)
 defaultRelay = relay (\k -> send >=> k)
 
--- | A handler for when there are no effects. Since a `Handler`s handle effects,
+-- | A handler for when there are no effects. Since `Handler`s handle effects,
 -- they cannot be run on an effect that produces no effects. By the principle of
 -- explosion, a handler that requires exactly zero effects can produce any
 -- value.
