@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Control.Effect.Coroutine,
                        Control.Effect.Exception,
+                       Control.Effect.Lift,
                        Control.Effect.List,
                        Control.Effect.Monad,
                        Control.Effect.Reader,

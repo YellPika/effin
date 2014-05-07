@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -12,6 +13,7 @@ import Control.Effect.Monad (EffectMonad, lift)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
 data Resource (m :: * -> *) a = Resource a (m ())
+  deriving Functor
 
 type EffectResource m es = (Member (Resource m) es, m ~ ResourceType es)
 type family ResourceType es where

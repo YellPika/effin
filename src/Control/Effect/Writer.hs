@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -15,6 +16,7 @@ import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept,
 import Data.Monoid (Monoid (..))
 
 data Writer w a = Writer w a
+  deriving Functor
 
 type EffectWriter w es = (Monoid w, Member (Writer w) es, w ~ WriterType es)
 type family WriterType es where

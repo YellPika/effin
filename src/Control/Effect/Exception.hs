@@ -17,7 +17,7 @@ newtype Exception e a = Exception { unException :: e }
 
 type EffectException e es = (Member (Exception e) es, e ~ ExceptionType es)
 type family ExceptionType es where
-    ExceptionType (Exception s ': es) = s
+    ExceptionType (Exception e ': es) = e
     ExceptionType (e ': es) = ExceptionType es
 
 raise :: EffectException e es => e -> Effect es a

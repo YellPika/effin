@@ -1,7 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Control.Effect.Thread (
@@ -16,10 +16,8 @@ import Control.Monad (void)
 import Control.Effect.Monad (runMonad)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
-data Thread a
-    = Yield a
-    | Fork a a
-    | Abort
+data Thread a = Yield a | Fork a a | Abort
+  deriving Functor
 
 type EffectThread = Member Thread
 
