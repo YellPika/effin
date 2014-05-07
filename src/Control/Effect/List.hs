@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeOperators #-}
@@ -15,26 +16,27 @@ module Control.Effect.List (
 
 import Control.Arrow (second)
 import Control.Applicative (Alternative (..), (<$>))
-import Control.Monad (MonadPlus (..), (<=<), join)
+import Control.Monad (MonadPlus (..), (<=<))
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 
-newtype List a = List [a]
+newtype List a = List { unList :: [a] }
+  deriving Functor
 
 type EffectList = Member List
 
 choose :: EffectList es => [a] -> Effect es a
-choose = send . List
+choose = select . map return
 
 never :: EffectList es => Effect es a
-never = choose []
+never = select []
 
 select :: EffectList es => [Effect es a] -> Effect es a
-select = join . choose
+select = send . List
 
 runList :: Effect (List ': es) a -> Effect es [a]
 runList =
     handle (\x -> return [x])
-    $ eliminate (\k (List xs) -> concat <$> mapM k xs)
+    $ eliminate (fmap concat . sequence . unList)
     $ defaultRelay
 
 instance EffectList es => Alternative (Effect es) where
@@ -46,6 +48,7 @@ instance EffectList es => MonadPlus (Effect es) where
     mplus = (<|>)
 
 data Cut a = Cut
+  deriving Functor
 
 type EffectCut = Member Cut
 
@@ -65,8 +68,8 @@ runCut = choose . snd <=< reifyCut
     reifyCut :: EffectList es => Effect (Cut ': es) a -> Effect es (Bool, [a])
     reifyCut =
         handle (\x -> return (False, [x]))
-        $ eliminate (\_ Cut -> return (True, []))
-        $ intercept (\k (List xs) -> runAll (map k xs))
+        $ eliminate (\Cut -> return (True, []))
+        $ intercept (\(List xs) -> runAll xs)
         $ defaultRelay
 
     runAll [] = return (False, [])

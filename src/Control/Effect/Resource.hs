@@ -19,7 +19,7 @@ type family ResourceType es where
     ResourceType (e ': es) = ResourceType es
 
 register :: EffectResource m es => m () -> Effect es ()
-register = send . Resource ()
+register = send . Resource (return ())
 
 runResource :: EffectMonad m es => Effect (Resource m ': es) a -> Effect es a
 runResource effect = do
@@ -29,5 +29,5 @@ runResource effect = do
   where
     run =
         handle (\x -> return (x, []))
-        $ eliminate (\k (Resource unit d) -> second (d:) <$> k unit)
+        $ eliminate (\(Resource k d) -> second (d:) <$> k)
         $ defaultRelay

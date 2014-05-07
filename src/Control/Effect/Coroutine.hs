@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -11,6 +12,8 @@ module Control.Effect.Coroutine (
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
 data Coroutine i o a = Coroutine (o -> a) i
+  deriving Functor
+
 data Iterator i o es a = Done a | Next (o -> Effect es (Iterator i o es a)) i
 
 type EffectCoroutine i o es = (Member (Coroutine i o) es, '(i, o) ~ CoroutineType es)
@@ -19,10 +22,10 @@ type family CoroutineType es where
     CoroutineType (e ': es) = CoroutineType es
 
 suspend :: EffectCoroutine i o es => i -> Effect es o
-suspend = send . Coroutine id
+suspend = send . Coroutine return
 
 runCoroutine :: Effect (Coroutine i o ': es) a -> Effect es (Iterator i o es a)
 runCoroutine =
     handle (return . Done)
-    $ eliminate (\k (Coroutine f x) -> return $ Next (k . f) x)
+    $ eliminate (\(Coroutine f k) -> return (Next f k))
     $ defaultRelay

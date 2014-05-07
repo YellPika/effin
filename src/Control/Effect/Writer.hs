@@ -22,7 +22,7 @@ type family WriterType es where
     WriterType (t ': es) = WriterType es
 
 tell :: EffectWriter w es => w -> Effect es ()
-tell x = send (Writer x ())
+tell x = send $ Writer x $ return ()
 
 listen :: EffectWriter w es => Effect es a -> Effect es (a, w)
 listen =
@@ -42,7 +42,7 @@ pass effect = do
 censor :: EffectWriter w es => (w -> w) -> Effect es a -> Effect es a
 censor f =
     handle return
-    $ intercept (\k (Writer l x) -> tell (f l) >> k x)
+    $ intercept (\(Writer l k) -> tell (f l) >> k)
     $ defaultRelay
 
 runWriter :: EffectWriter w es => Effect (Writer w ': es) a -> Effect es (a, w)
@@ -54,5 +54,5 @@ runWriter =
 point :: EffectWriter w es => a -> Effect es (a, w)
 point x = return (x, mempty)
 
-bind :: Monoid w => (a -> Effect es (b, w)) -> Writer w a -> Effect es (b, w)
-bind k (Writer l x) = second (`mappend` l) <$> k x
+bind :: Monoid w => Writer w (Effect es (b, w)) -> Effect es (b, w)
+bind (Writer l k) = second (`mappend` l) <$> k

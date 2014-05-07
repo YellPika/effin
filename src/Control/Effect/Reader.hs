@@ -11,7 +11,7 @@ module Control.Effect.Reader (
 
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 
-data Reader r a = Reader (r -> a)
+newtype Reader r a = Reader (r -> a)
 
 type EffectReader r es = (Member (Reader r) es, r ~ ReaderType es)
 type family ReaderType es where
@@ -22,7 +22,7 @@ ask :: EffectReader r es => Effect es r
 ask = asks id
 
 asks :: EffectReader r es => (r -> a) -> Effect es a
-asks = send . Reader
+asks = send . Reader . fmap return
 
 local :: EffectReader r es => (r -> r) -> Effect es a -> Effect es a
 local f effect = do
@@ -40,5 +40,5 @@ runReader env =
     $ eliminate (bind env)
     $ defaultRelay
 
-bind :: r -> (a -> Effect es b) -> Reader r a -> Effect es b
-bind env k (Reader f) = k (f env)
+bind :: r -> Reader r (Effect es b) -> Effect es b
+bind env (Reader k) = k env

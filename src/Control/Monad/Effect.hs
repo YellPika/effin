@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -45,12 +46,14 @@ module Control.Monad.Effect (
 ) where
 
 import Control.Applicative (Applicative (..))
-import Control.Monad ((>=>), ap, liftM)
+import Control.Monad (ap, liftM)
 import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnion)
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
-data Effect es a = Effect (forall b. (a -> b) -> Handler es b -> b)
+data Effect es a where
+    Done :: a -> Effect es a
+    Side :: Union es (Effect es a) -> Effect es a
 
 instance Functor (Effect es) where
     fmap = liftM
@@ -60,22 +63,23 @@ instance Applicative (Effect es) where
     (<*>) = ap
 
 instance Monad (Effect es) where
-    return x = Effect (\point _ -> point x)
-    Effect g >>= f = Effect $ \point bind ->
-        g (\x -> handle point bind (f x)) bind
+    return = Done
+    Done x >>= f = f x
+    Side x >>= f = Side (fmap (>>= f) x)
 
 -- | Converts an computation that produces no effects into a regular value.
 runEffect :: Effect '[] a -> a
-runEffect = handle id undefined
+runEffect (Done x) = x
+runEffect (Side u) = absurdUnion u
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
-send :: Member e es => e a -> Effect es a
-send x = Effect $ \point (Handler bind) -> bind point (inject x)
+send :: Member e es => e (Effect es a) -> Effect es a
+send = Side . inject
 
--- | A handler for an effectful computation.
--- Combined with 'handle', allows one to convert a computation
--- parameterized by the effect list @es@ to a value of type @a@.
-newtype Handler es a = Handler (forall b. (b -> a) -> Union es b -> a)
+---- | A handler for an effectful computation.
+---- Combined with 'handle', allows one to convert a computation
+---- parameterized by the effect list @es@ to a value of type @a@.
+data Handler es a = Handler (Union es a -> a)
 
 -- | @handle p h@ transforms an effect into a value of type @b@.
 --
@@ -85,42 +89,37 @@ newtype Handler es a = Handler (forall b. (b -> a) -> Union es b -> a)
 --
 -- @h@ specifies how to handle effects.
 handle :: (a -> b) -> Handler es b -> Effect es a -> b
-handle point handler (Effect run) = run point handler
+handle point (Handler bind) = run
+  where
+    run (Done x) = point x
+    run (Side x) = bind (fmap run x)
 
 -- | Provides a way to completely handle an effect.
 -- The given function is passed a continuation and an effect value.
 -- The universally quantified variable @c@ can be thought of as the type of
 -- value that the user code is expecting to receive from a call to `send`.
-eliminate :: (forall c. (c -> b) -> e c -> b)
-          -> Handler es b
-          -> Handler (e ': es) b
-eliminate bind (Handler pass) = Handler $ \k u ->
-    either (pass k) (bind k) (reduce u)
+eliminate :: (e b -> b) -> Handler es b -> Handler (e ': es) b
+eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 
 -- | Provides a way to handle an effect without eliminating it.
 -- The given function is passed a continuation and an effect value.
-intercept :: Member e es
-          => (forall c. (c -> b) -> e c -> b)
-          -> Handler es b
-          -> Handler es b
-intercept bind (Handler pass) = Handler $ \k u ->
-    maybe (pass k u) (bind k) (project u)
+intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
+intercept bind (Handler pass) = Handler $ \u -> maybe (pass u) bind (project u)
 
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.
-relay :: (forall c e. Member e es => (c -> b) -> e c -> b) -> Handler es b
-relay bind = Handler $ \k u ->
-    withUnion (bind k) u
+relay :: (forall e. Member e es => e b -> b) -> Handler es b
+relay f = Handler (withUnion f)
 
 -- | Relays all effects without examining them.
 --
 -- prop> handle id defaultRelay x = x
-defaultRelay :: Handler es (Effect es b)
-defaultRelay = relay (\k -> send >=> k)
+defaultRelay :: Handler es (Effect es a)
+defaultRelay = relay send
 
 -- | A handler for when there are no effects. Since `Handler`s handle effects,
--- they cannot be run on an effect that produces no effects. By the principle of
--- explosion, a handler that requires exactly zero effects can produce any
--- value.
+-- they cannot be run on a computation that never produces an effect. By the
+-- principle of explosion, a handler that requires exactly zero effects can
+-- produce any value.
 emptyRelay :: Handler '[] a
-emptyRelay = Handler $ \_ -> absurdUnion
+emptyRelay = Handler absurdUnion

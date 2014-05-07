@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -11,7 +12,8 @@ module Control.Effect.Exception (
 
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 
-data Exception e a = Exception e
+newtype Exception e a = Exception { unException :: e }
+  deriving Functor
 
 type EffectException e es = (Member (Exception e) es, e ~ ExceptionType es)
 type family ExceptionType es where
@@ -26,7 +28,7 @@ except = flip run
   where
     run handler =
         handle return
-        $ intercept (\_ (Exception e) -> handler e)
+        $ intercept (handler . unException)
         $ defaultRelay
 
 finally :: EffectException e es => Effect es a -> Effect es () -> Effect es a
@@ -40,5 +42,5 @@ finally effect finalizer = do
 runException :: Effect (Exception e ': es) a -> Effect es (Either e a)
 runException =
     handle (return . Right)
-    $ eliminate (\_ (Exception e) -> return (Left e))
+    $ eliminate (return . Left . unException)
     $ defaultRelay

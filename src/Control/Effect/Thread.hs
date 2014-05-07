@@ -12,26 +12,22 @@ module Control.Effect.Thread (
 
 import qualified Control.Concurrent as IO
 import Control.Applicative ((<$>))
-import Control.Monad (void, unless)
+import Control.Monad (void)
 import Control.Effect.Monad (runMonad)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
-data Thread a where
-    Yield :: Thread ()
-    Fork :: Thread Bool
-    Abort :: Thread a
+data Thread a
+    = Yield a
+    | Fork a a
+    | Abort
 
 type EffectThread = Member Thread
 
 yield :: EffectThread es => Effect es ()
-yield = send Yield
+yield = send $ Yield $ return ()
 
 fork :: EffectThread es => Effect es () -> Effect es ()
-fork child = do
-    isParent <- send Fork
-    unless isParent $ do
-        child
-        abort
+fork child = send $ Fork child $ return ()
 
 abort :: EffectThread es => Effect es ()
 abort = send Abort
@@ -41,24 +37,24 @@ abort = send Abort
 runMain :: Effect (Thread ': es) () -> Effect es ()
 runMain = run [] . reifyThreads
   where
-    run xs thread = do
+    run auxThreads thread = do
         result <- thread
         case result of
-            Abort' -> return ()
-            Yield' x -> do
-                xs' <- runAll xs
-                run xs' x
-            Fork' x y -> do
-                xs' <- runAll [x]
-                run (xs ++ xs') y
+            AbortAST -> return ()
+            YieldAST k -> do
+                auxThreads' <- runAll auxThreads
+                run auxThreads' k
+            ForkAST child parent -> do
+                auxThreads' <- runAll [child]
+                run (auxThreads ++ auxThreads') parent
 
     runAll [] = return []
     runAll (thread:xs) = do
         result <- thread
         case result of
-            Abort' -> runAll xs
-            Yield' x -> (x:) <$> runAll xs
-            Fork' x y -> (y:) <$> runAll (x:xs)
+            AbortAST -> runAll xs
+            YieldAST k -> (k:) <$> runAll xs
+            ForkAST child parent -> (parent:) <$> runAll (child:xs)
 
 -- | Executes a threaded computation synchronously.
 -- Does not complete until all threads have exited.
@@ -69,9 +65,9 @@ runSync = run . (:[]) . reifyThreads
     run (thread:xs) = do
         result <- thread
         case result of
-            Abort' -> run xs
-            Yield' x -> run (xs ++ [x])
-            Fork' x y -> run (x:xs ++ [y])
+            AbortAST -> run xs
+            YieldAST k -> run (xs ++ [k])
+            ForkAST child parent -> run (child:xs ++ [parent])
 
 -- | Executes a threaded computation asynchronously.
 runAsync :: Effect '[Thread, IO] () -> IO ()
@@ -80,29 +76,28 @@ runAsync = run . reifyThreads
     run thread = do
         result <- runMonad thread
         case result of
-            Abort' -> return ()
-            Yield' x -> do
+            AbortAST -> return ()
+            YieldAST k -> do
                 IO.yield
-                run x
-            Fork' x y -> do
-                void $ IO.forkIO $ run x
-                run y
+                run k
+            ForkAST child parent -> do
+                void $ IO.forkIO $ run child
+                run parent
 
 data ThreadAST es
-    = Yield' (Effect es (ThreadAST es))
-    | Fork' (Effect es (ThreadAST es)) (Effect es (ThreadAST es))
-    | Abort'
+    = YieldAST (Effect es (ThreadAST es))
+    | ForkAST (Effect es (ThreadAST es)) (Effect es (ThreadAST es))
+    | AbortAST
 
 -- Converts a threaded computation into a corresponding AST. This allows
 -- different backends to interpret calls to fork/yield/abort as they please. See
 -- the implementations of runAsync, runSync, and runMain.
 reifyThreads :: Effect (Thread ': es) () -> Effect es (ThreadAST es)
 reifyThreads =
-    handle (\() -> return Abort')
-    $ eliminate bind
+    handle (\() -> return AbortAST)
+    $ eliminate (\thread ->
+        case thread of
+            Abort -> return AbortAST
+            Yield k -> return (YieldAST k)
+            Fork child parent -> return (ForkAST child parent))
     $ defaultRelay
-  where
-    bind :: (c -> Effect es (ThreadAST es)) -> Thread c -> Effect es (ThreadAST es)
-    bind _ Abort = return Abort'
-    bind k Yield = return $ Yield' (k ())
-    bind k Fork = return $ Fork' (k False) (k True)

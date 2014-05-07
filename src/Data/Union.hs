@@ -18,7 +18,10 @@ module Data.Union (
 
 -- Union -----------------------------------------------------------------------
 data Union es a where
-    Union :: Index e es -> e a -> Union es a
+    Union :: Functor e => Index e es -> e a -> Union es a
+
+instance Functor (Union es) where
+    fmap f (Union i x) = Union i (fmap f x)
 
 inject :: Member e es => e a -> Union es a
 inject = Union index
@@ -45,8 +48,8 @@ absurdUnion (Union i _) = (case i of)
 
 -- | A constraint that requires that the type constructor @t :: * -> *@ is a
 -- member of the list of types @ts :: [* -> *]@.
-class Member' t ts (IndexOf t ts) => Member t ts
-instance Member' t ts (IndexOf t ts) => Member t ts
+class (Functor t, Member' t ts (IndexOf t ts)) => Member t ts
+instance (Functor t, Member' t ts (IndexOf t ts)) => Member t ts
 
 class n ~ IndexOf e es => Member' e es n where
     index :: Index e es
@@ -62,7 +65,7 @@ data Index e es where
     Zero :: Index e (e ': es)
     Succ :: IndexOf e (f ': es) ~ S (IndexOf e es) => Index e es -> Index e (f ': es)
 
-withIndex :: (Member e es => r) -> Index e es -> r
+withIndex :: Functor e => (Member e es => r) -> Index e es -> r
 withIndex x Zero = x
 withIndex x (Succ n) = withIndex x n
 
