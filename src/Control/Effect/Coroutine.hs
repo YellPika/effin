@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Control.Effect.Coroutine (
-    Coroutine, Iterator (..), EffectCoroutine, runCoroutine, yield
+    Coroutine, Iterator (..), EffectCoroutine, runCoroutine, suspend
 ) where
 
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
@@ -18,8 +18,8 @@ type family CoroutineType es where
     CoroutineType (Coroutine i o ': es) = '(i, o)
     CoroutineType (e ': es) = CoroutineType es
 
-yield :: EffectCoroutine i o es => i -> Effect es o
-yield = send . Coroutine id
+suspend :: EffectCoroutine i o es => i -> Effect es o
+suspend = send . Coroutine id
 
 runCoroutine :: Effect (Coroutine i o ': es) a -> Effect es (Iterator i o es a)
 runCoroutine =
