@@ -49,11 +49,11 @@ censor f =
 
 runWriter :: Monoid w => Effect (Writer w ': es) a -> Effect es (a, w)
 runWriter =
-    handle (\x -> return (x, mempty))
+    handle point
     $ eliminate bind
     $ defaultRelay
 
-point :: EffectWriter w es => a -> Effect es (a, w)
+point :: Monoid w => a -> Effect es (a, w)
 point x = return (x, mempty)
 
 bind :: Monoid w => Writer w (Effect es (b, w)) -> Effect es (b, w)
