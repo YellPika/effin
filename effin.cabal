@@ -21,6 +21,7 @@ library
                        Control.Effect.Reader,
                        Control.Effect.Resource,
                        Control.Effect.State,
+                       Control.Effect.Thread,
                        Control.Effect.Writer,
                        Control.Monad.Effect
   other-modules:       Data.Union
