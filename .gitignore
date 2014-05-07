@@ -1,0 +1,12 @@
+dist
+cabal-dev
+cabal.sandbox.config
+*.o
+*.hi
+*.chi
+*.chs.h
+*.sublime-project
+*.sublime-workspace
+.cabal-sandbox
+.virthualenv
+.hdevtools.sock
