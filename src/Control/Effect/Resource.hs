@@ -21,7 +21,7 @@ type family ResourceType es where
     ResourceType (e ': es) = ResourceType es
 
 register :: EffectResource m es => m () -> Effect es ()
-register = send . Resource (return ())
+register = send . Resource ()
 
 runResource :: EffectLift m es => Effect (Resource m ': es) a -> Effect es a
 runResource effect = do

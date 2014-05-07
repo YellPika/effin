@@ -23,7 +23,7 @@ ask :: EffectReader r es => Effect es r
 ask = asks id
 
 asks :: EffectReader r es => (r -> a) -> Effect es a
-asks = send . Reader . fmap return
+asks = send . Reader
 
 local :: EffectReader r es => (r -> r) -> Effect es a -> Effect es a
 local f effect = do

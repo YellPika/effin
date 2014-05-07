@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -10,7 +11,7 @@
 module Control.Monad.Effect (
     -- * The Effect Monad
     Effect,
-    runEffect, send,
+    runEffect, send, sendEffect,
 
     -- * Effect Handlers
     -- | The following types and functions form a small DSL that allows users to
@@ -45,36 +46,36 @@ module Control.Monad.Effect (
 ) where
 
 import Control.Applicative (Applicative (..))
+import Control.Monad (join)
 import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnion)
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
-data Effect es a
-    = Return a
-    | Effect (Union es (Effect es a))
-
-instance Functor (Effect es) where
-    fmap f (Return x) = Return (f x)
-    fmap f (Effect x) = Effect (fmap (fmap f) x)
+data Effect es a = Effect {
+    unEffect :: forall r. (a -> r) -> (Union es r -> r) -> r
+} deriving Functor
 
 instance Applicative (Effect es) where
-    pure = Return
-    Return f <*> x = fmap f x
-    Effect f <*> x = Effect (fmap (<*> x) f)
+    pure x = Effect $ \p _ -> p x
+    Effect f <*> Effect x = Effect $ \p b ->
+        f (\f' -> x (p . f') b) b
 
 instance Monad (Effect es) where
-    return = Return
-    Return x >>= f = f x
-    Effect x >>= f = Effect (fmap (>>= f) x)
+    return = pure
+    Effect x >>= f = Effect $ \p b ->
+        x (\x' -> unEffect (f x') p b) b
 
 -- | Converts an computation that produces no effects into a regular value.
 runEffect :: Effect '[] a -> a
-runEffect (Return x) = x
-runEffect (Effect u) = absurdUnion u
+runEffect (Effect f) = f id absurdUnion
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
-send :: Member e es => e (Effect es a) -> Effect es a
-send = Effect . inject
+send :: Member e es => e a -> Effect es a
+send x = Effect $ \point bind -> bind $ inject $ fmap point x
+
+-- | Executes an effect of type @e@ that produces a return value of type @a@.
+sendEffect :: Member e es => e (Effect es a) -> Effect es a
+sendEffect = join . send
 
 -- | A handler for an effectful computation.
 -- Combined with 'handle', allows one to convert a computation
@@ -89,10 +90,7 @@ data Handler es a = Handler (Union es a -> a)
 --
 -- @h@ specifies how to handle effects.
 handle :: (a -> b) -> Handler es b -> Effect es a -> b
-handle point (Handler bind) = run
-  where
-    run (Return x) = point x
-    run (Effect x) = bind (fmap run x)
+handle point (Handler bind) (Effect f) = f point bind
 
 -- | Provides a way to completely handle an effect.
 -- The given function is passed a continuation and an effect value.
@@ -115,7 +113,7 @@ relay f = Handler (withUnion f)
 --
 -- prop> handle id defaultRelay x = x
 defaultRelay :: Handler es (Effect es a)
-defaultRelay = relay send
+defaultRelay = relay sendEffect
 
 -- | A handler for when there are no effects. Since `Handler`s handle effects,
 -- they cannot be run on a computation that never produces an effect. By the

@@ -14,7 +14,7 @@ import qualified Control.Concurrent as IO
 import Control.Applicative ((<$>))
 import Control.Monad (void)
 import Control.Effect.Lift (Lift, runLift)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
+import Control.Monad.Effect (Effect, Member, send, sendEffect, handle, eliminate, defaultRelay)
 
 data Thread a = Yield a | Fork a a | Abort
   deriving Functor
@@ -22,10 +22,10 @@ data Thread a = Yield a | Fork a a | Abort
 type EffectThread = Member Thread
 
 yield :: EffectThread es => Effect es ()
-yield = send $ Yield $ return ()
+yield = send (Yield ())
 
 fork :: EffectThread es => Effect es () -> Effect es ()
-fork child = send $ Fork child $ return ()
+fork child = sendEffect $ Fork child (return ())
 
 abort :: EffectThread es => Effect es ()
 abort = send Abort

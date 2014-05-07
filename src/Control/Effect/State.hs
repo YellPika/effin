@@ -14,8 +14,7 @@ module Control.Effect.State (
 ) where
 
 import Control.Applicative ((<$>))
-import Control.Arrow (second)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, relay)
+import Control.Monad.Effect (Effect, Member, send, sendEffect, handle, eliminate, relay)
 
 data State s a = State (s -> (s, a))
   deriving Functor
@@ -26,13 +25,13 @@ type family StateType es where
     StateType (e ': es) = StateType es
 
 get :: EffectState s es => Effect es s
-get = send $ State $ \s -> (s, return s)
+get = state $ \s -> (s, s)
 
 gets :: EffectState s es => (s -> s) -> Effect es s
 gets f = f <$> get
 
 put :: EffectState s es => s -> Effect es ()
-put x = send $ State $ const (x, return ())
+put x = state $ const (x, ())
 
 modify :: EffectState s es => (s -> s) -> Effect es ()
 modify f = get >>= put . f
@@ -43,7 +42,7 @@ modify' f = do
     put $! f x
 
 state :: EffectState s es => (s -> (s, a)) -> Effect es a
-state f = send $ State $ second return . f
+state = send . State
 
 withState :: EffectState s es => (s -> s) -> Effect es a -> Effect es a
 withState f x = modify f >> x
@@ -52,7 +51,7 @@ runState :: s -> Effect (State s ': es) a -> Effect es (s, a)
 runState = flip $
     handle (\x s -> return (s, x))
     $ eliminate (\(State k) s -> let (s', k') = k s in k' s')
-    $ relay (\x s -> send $ fmap ($ s) x)
+    $ relay (\x s -> sendEffect $ fmap ($ s) x)
 
 evalState :: s -> Effect (State s ': es) a -> Effect es a
 evalState s = fmap snd . runState s

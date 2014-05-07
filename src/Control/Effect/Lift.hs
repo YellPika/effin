@@ -21,7 +21,7 @@ type family LiftType es where
     LiftType (e ': es) = LiftType es
 
 lift :: EffectLift m es => m a -> Effect es a
-lift = send . Lift . liftM return
+lift = send . Lift
 
 runLift :: Monad m => Effect '[Lift m] a -> m a
 runLift =

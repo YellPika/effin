@@ -16,7 +16,7 @@ module Control.Effect.List (
 
 import Control.Arrow (second)
 import Control.Applicative (Alternative (..), (<$>))
-import Control.Monad (MonadPlus (..), (<=<))
+import Control.Monad (MonadPlus (..), (<=<), join)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 
 newtype List a = List { unList :: [a] }
@@ -25,13 +25,13 @@ newtype List a = List { unList :: [a] }
 type EffectList = Member List
 
 choose :: EffectList es => [a] -> Effect es a
-choose = select . map return
+choose = send . List
 
 never :: EffectList es => Effect es a
-never = select []
+never = choose []
 
 select :: EffectList es => [Effect es a] -> Effect es a
-select = send . List
+select = join . choose
 
 runList :: Effect (List ': es) a -> Effect es [a]
 runList =

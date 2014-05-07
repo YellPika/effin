@@ -22,7 +22,7 @@ type family CoroutineType es where
     CoroutineType (e ': es) = CoroutineType es
 
 suspend :: EffectCoroutine i o es => i -> Effect es o
-suspend = send . Coroutine return
+suspend = send . Coroutine id
 
 runCoroutine :: Effect (Coroutine i o ': es) a -> Effect es (Iterator i o es a)
 runCoroutine =

@@ -24,7 +24,7 @@ type family WriterType es where
     WriterType (t ': es) = WriterType es
 
 tell :: EffectWriter w es => w -> Effect es ()
-tell x = send $ Writer x $ return ()
+tell x = send (Writer x ())
 
 listen :: EffectWriter w es => Effect es a -> Effect es (a, w)
 listen =
