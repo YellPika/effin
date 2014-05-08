@@ -14,8 +14,7 @@ import qualified Control.Concurrent as IO
 import Control.Applicative ((<$>))
 import Control.Monad (void)
 import Control.Effect.Lift (Lift, runLift)
-import Control.Monad.Effect (Effect, send, sendEffect, handle, eliminate, defaultRelay)
-import Data.Member (Member)
+import Control.Monad.Effect (Effect, Member, send, sendEffect, handle, eliminate, defaultRelay)
 
 -- | An effect that describes concurrent computation.
 data Thread a = Yield a | Fork a a | Abort

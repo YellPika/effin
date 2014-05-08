@@ -9,8 +9,7 @@ module Control.Effect.Coroutine (
     Coroutine, Iterator (..), EffectCoroutine, runCoroutine, suspend
 ) where
 
-import Control.Monad.Effect (Effect, send, handle, eliminate, defaultRelay)
-import Data.Member (Member)
+import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
 -- | An effect describing a suspendable computation.
 data Coroutine i o a = Coroutine (o -> a) i

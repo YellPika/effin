@@ -12,8 +12,7 @@ module Control.Effect.Writer (
 
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
-import Control.Monad.Effect (Effect, send, handle, eliminate, intercept, defaultRelay)
-import Data.Member (Member)
+import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 import Data.Monoid (Monoid (..))
 
 -- | An effect that allows accumulating output.

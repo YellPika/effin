@@ -14,8 +14,7 @@ module Control.Effect.State (
 ) where
 
 import Control.Applicative ((<$>))
-import Control.Monad.Effect (Effect, send, sendEffect, handle, eliminate, relay)
-import Data.Member (Member)
+import Control.Monad.Effect (Effect, Member, send, sendEffect, handle, eliminate, relay)
 
 -- | An effect where a state value is threaded throughout the computation.
 data State s a = State (s -> (s, a))

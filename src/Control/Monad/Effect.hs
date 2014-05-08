@@ -3,16 +3,15 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
 
--- | This module provides two things:
+-- | This module provides three things:
 --
 -- 1. An `Effect` monad for representing effectful computations,
 -- 2. A DSL for effect handling that lets you cleanly handle an arbitrary number of effects, and
+-- 3. A type-level list membership constraint.
 module Control.Monad.Effect (
     -- * The Effect Monad
     Effect,
-    runEffect,
-    send, sendAt,
-    sendEffect, sendEffectAt,
+    runEffect, send, sendEffect,
 
     -- * Effect Handlers
     -- | The following types and functions form a small DSL that allows users to
@@ -39,8 +38,11 @@ module Control.Monad.Effect (
     -- while `eliminate`, `intercept`, and `relay` let you specify the bind
     -- function.
     Handler, handle,
-    eliminate, intercept, interceptAt,
-    relay, defaultRelay, emptyRelay
+    eliminate, intercept,
+    relay, defaultRelay, emptyRelay,
+
+    -- * Membership
+    Member
 ) where
 
 import Control.Applicative (Applicative (..))
