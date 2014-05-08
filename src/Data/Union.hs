@@ -5,6 +5,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -16,6 +17,8 @@ module Data.Union (
     absurdUnion
 ) where
 
+import Unsafe.Coerce (unsafeCoerce)
+
 -- Union -----------------------------------------------------------------------
 data Union es a where
     Union :: Functor e => Index e es -> e a -> Union es a
@@ -26,23 +29,22 @@ instance Functor (Union es) where
 inject :: Member e es => e a -> Union es a
 inject = Union index
 
-project :: Member e es => Union es a -> Maybe (e a)
-project (Union i x) = project' index i x
+project :: forall a e es. Member e es => Union es a -> Maybe (e a)
+project (Union (Index i) x)
+    | i == j = Just (unsafeCoerce x)
+    | otherwise = Nothing
   where
-    project' :: Index e es -> Index f es -> f a -> Maybe (e a)
-    project' Zero Zero = Just
-    project' (Succ n) (Succ m) = project' n m
-    project' _ _ = const Nothing
+    Index j = index :: Index e es
 
 reduce :: Union (e ': es) a -> Either (Union es a) (e a)
-reduce (Union Zero x) = Right x
-reduce (Union (Succ n) x) = Left (Union n x)
+reduce (Union (Index 0) x) = Right (unsafeCoerce x)
+reduce (Union (Index n) x) = Left (Union (Index (n - 1)) x)
 
 withUnion :: (forall e. Member e es => e a -> r) -> Union es a -> r
 withUnion f (Union i x) = withIndex (f x) i
 
 absurdUnion :: Union '[] a -> b
-absurdUnion (Union i _) = (case i of)
+absurdUnion _ = error "absurdUnion"
 
 -- Membership ------------------------------------------------------------------
 
@@ -55,19 +57,19 @@ class n ~ IndexOf e es => Member' e es n where
     index :: Index e es
 
 instance Member' e (e ': es) Z where
-    index = Zero
+    index = Index 0
 
 instance (Member' e es n, IndexOf e (f ': es) ~ S n) => Member' e (f ': es) (S n) where
-    index = Succ index
+    index = incr index
 
 -- Member Indices --------------------------------------------------------------
-data Index e es where
-    Zero :: Index e (e ': es)
-    Succ :: IndexOf e (f ': es) ~ S (IndexOf e es) => Index e es -> Index e (f ': es)
+data Index (e :: * -> *) (es :: [* -> *]) = Index Integer
+
+incr :: Index e es -> Index e (f ': es)
+incr (Index i) = Index (i + 1)
 
 withIndex :: Functor e => (Member e es => r) -> Index e es -> r
-withIndex x Zero = x
-withIndex x (Succ n) = withIndex x n
+withIndex = unsafeCoerce
 
 -- Type Level Indices ----------------------------------------------------------
 data N = Z | S N
