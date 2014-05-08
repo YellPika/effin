@@ -16,22 +16,26 @@ import Control.Monad (void)
 import Control.Effect.Lift (Lift, runLift)
 import Control.Monad.Effect (Effect, Member, send, sendEffect, handle, eliminate, defaultRelay)
 
+-- | An effect that describes concurrent computation.
 data Thread a = Yield a | Fork a a | Abort
   deriving Functor
 
 type EffectThread = Member Thread
 
+-- | Yields to the next available thread.
 yield :: EffectThread es => Effect es ()
 yield = send (Yield ())
 
+-- | Forks a child thread.
 fork :: EffectThread es => Effect es () -> Effect es ()
 fork child = sendEffect $ Fork child (return ())
 
+-- | Immediately terminates the current thread.
 abort :: EffectThread es => Effect es ()
 abort = send Abort
 
 -- | Executes a threaded computation synchronously.
--- All threads exit when the main thread exits.
+-- Completes when the main thread exits.
 runMain :: Effect (Thread ': es) () -> Effect es ()
 runMain = run [] . toAST
   where
