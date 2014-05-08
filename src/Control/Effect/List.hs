@@ -17,7 +17,8 @@ module Control.Effect.List (
 import Control.Arrow (second)
 import Control.Applicative (Alternative (..), (<$>))
 import Control.Monad (MonadPlus (..), (<=<), join)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
+import Control.Monad.Effect (Effect, send, handle, eliminate, intercept, defaultRelay)
+import Data.Member (Member)
 
 -- | Describes a nondeterminism (backtracking) effect.
 newtype List a = List { unList :: [a] }

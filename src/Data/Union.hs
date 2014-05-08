@@ -14,7 +14,7 @@ module Data.Union (
     absurdUnion
 ) where
 
-import Data.Member (Member (..), Index (..), withMember)
+import Data.Member (Member (..), Index (..), withIndex)
 
 data Union es a where
     Union :: Functor e => Index e es -> e a -> Union es a
@@ -44,7 +44,7 @@ reduce (Union Zero x) = Right x
 reduce (Union (Succ n) x) = Left (Union n x)
 
 withUnion :: (forall e. (Functor e, Member e es) => e a -> r) -> Union es a -> r
-withUnion f (Union i x) = withMember (f x) i
+withUnion f (Union i x) = withIndex i (f x)
 
 withUnionIndex :: (forall e. Functor e => Index e es -> e a -> r) -> Union es a -> r
 withUnionIndex f (Union i x) = f i x

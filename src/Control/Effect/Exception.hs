@@ -10,7 +10,8 @@ module Control.Effect.Exception (
     raise, except, finally
 ) where
 
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
+import Control.Monad.Effect (Effect, send, handle, eliminate, intercept, defaultRelay)
+import Data.Member (Member)
 
 -- | An effect that describes the possibility of failure.
 newtype Exception e a = Exception { unException :: e }

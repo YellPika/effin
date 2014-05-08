@@ -8,7 +8,8 @@
 module Control.Effect.Lift where
 
 import Control.Monad (join, liftM)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, emptyRelay)
+import Control.Monad.Effect (Effect, sendAt, handle, eliminate, emptyRelay)
+import Data.Member (Member (..), Index)
 
 -- | An effect described by a monad.
 -- All monads are functors, but not all `Monad`s have `Functor` instances.
@@ -27,7 +28,10 @@ type family LiftType es where
 
 -- | Lifts a monadic value into an effect.
 lift :: EffectLift m es => m a -> Effect es a
-lift = send . Lift
+lift = liftAt index
+
+liftAt :: Monad m => Index (Lift m) es -> m a -> Effect es a
+liftAt i = sendAt i . Lift
 
 -- | Converts a computation containing only monadic
 -- effects into a monadic computation.
