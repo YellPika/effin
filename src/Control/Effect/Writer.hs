@@ -33,13 +33,14 @@ tell x = send (Writer x ())
 -- written to the writer output of the outer computation.
 listen :: EffectWriter w es => Effect es a -> Effect es (a, w)
 listen effect = do
-    (value, output) <-
+    value@(_, output) <- run effect
+    tell output
+    return value
+  where
+    run =
         handle point
         $ intercept bind
         $ defaultRelay
-
-    tell output
-    return value
 
 -- | Like `listen`, but the writer output is run through a function.
 listens :: EffectWriter w es => (w -> b) -> Effect es a -> Effect es (a, b)

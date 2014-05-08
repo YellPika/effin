@@ -11,19 +11,28 @@ module Control.Effect.Coroutine (
 
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)
 
+-- | An effect describing a suspendable computation.
 data Coroutine i o a = Coroutine (o -> a) i
   deriving Functor
 
-data Iterator i o es a = Done a | Next (o -> Effect es (Iterator i o es a)) i
+-- | A suspended computation.
+data Iterator i o es a
+    = Done a -- ^ Describes a finished computation.
+    | Next (o -> Effect es (Iterator i o es a)) i
+    -- ^ Describes a computation that provided a value
+    -- of type `i` and awaits a value of type `o`.
 
 type EffectCoroutine i o es = (Member (Coroutine i o) es, '(i, o) ~ CoroutineType es)
 type family CoroutineType es where
     CoroutineType (Coroutine i o ': es) = '(i, o)
     CoroutineType (e ': es) = CoroutineType es
 
+-- | Suspends the current computation by providing a value
+-- of type `i` and then waiting for a value of type `o`.
 suspend :: EffectCoroutine i o es => i -> Effect es o
 suspend = send . Coroutine id
 
+-- | Converts a `Coroutine` effect into an `Iterator`.
 runCoroutine :: Effect (Coroutine i o ': es) a -> Effect es (Iterator i o es a)
 runCoroutine =
     handle (return . Done)
