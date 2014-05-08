@@ -20,7 +20,6 @@ library
                        Control.Effect.Lift,
                        Control.Effect.List,
                        Control.Effect.Reader,
-                       Control.Effect.Resource,
                        Control.Effect.State,
                        Control.Effect.Thread,
                        Control.Effect.Writer,
