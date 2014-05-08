@@ -47,7 +47,8 @@ module Control.Monad.Effect (
 
 import Control.Applicative (Applicative (..))
 import Control.Monad (join)
-import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnion)
+import Data.Member (Member (..), Index)
+import Data.Union (Union, injectAt, projectAt, reduce, withUnion, absurdUnion)
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
@@ -70,12 +71,18 @@ runEffect :: Effect '[] a -> a
 runEffect (Effect f) = f id absurdUnion
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
-send :: Member e es => e a -> Effect es a
-send x = Effect $ \point bind -> bind $ inject $ fmap point x
+send :: (Functor e, Member e es) => e a -> Effect es a
+send = sendAt index
+
+sendAt :: Functor e => Index e es -> e a -> Effect es a
+sendAt i x = Effect $ \point bind -> bind $ injectAt i $ fmap point x
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
-sendEffect :: Member e es => e (Effect es a) -> Effect es a
-sendEffect = join . send
+sendEffect :: (Functor e, Member e es) => e (Effect es a) -> Effect es a
+sendEffect = sendEffectAt index
+
+sendEffectAt :: Functor e => Index e es -> e (Effect es a) -> Effect es a
+sendEffectAt i = join . sendAt i
 
 -- | A handler for an effectful computation.
 -- Combined with 'handle', allows one to convert a computation
@@ -101,12 +108,16 @@ eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 -- | Provides a way to handle an effect without eliminating it. The given
 -- function is passed an effect value parameterized by the output type (i.e. the
 -- return type of `handle`).
-intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
-intercept bind (Handler pass) = Handler $ \u -> maybe (pass u) bind (project u)
+intercept :: (Functor e, Member e es) => (e b -> b) -> Handler es b -> Handler es b
+intercept = interceptAt index
+
+interceptAt :: Functor e => Index e es -> (e b -> b) -> Handler es b -> Handler es b
+interceptAt i bind (Handler pass) = Handler $ \u ->
+    maybe (pass u) bind (projectAt i u)
 
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.
-relay :: (forall e. Member e es => e b -> b) -> Handler es b
+relay :: (forall e. (Functor e, Member e es) => e b -> b) -> Handler es b
 relay f = Handler (withUnion f)
 
 -- | Relays all effects without examining them.
