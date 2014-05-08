@@ -14,7 +14,6 @@ import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept,
 
 -- | An effect that describes an implicit environment.
 newtype Reader r a = Reader (r -> a)
-  deriving Functor
 
 type EffectReader r es = (Member (Reader r) es, r ~ ReaderType es)
 type family ReaderType es where
