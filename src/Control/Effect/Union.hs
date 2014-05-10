@@ -27,5 +27,7 @@ nest =
 runUnion :: KnownList es => Effect (Union es ': fs) a -> Effect (es ++ fs) a
 runUnion =
     handle return
-    $ collapse
-    $ defaultRelay
+    $ relayUnion (withUnion sendEffect . flatten)
+
+relayUnion :: (Union es b -> b) -> Handler es b
+relayUnion f = relay (f . inject)
