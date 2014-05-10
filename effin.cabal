@@ -23,6 +23,7 @@ library
                        Control.Effect.State,
                        Control.Effect.Thread,
                        Control.Effect.Writer,
+                       Control.Effect.Union,
                        Control.Monad.Effect
   other-modules:       Data.Union
   build-depends:       base >=4.7 && <4.8

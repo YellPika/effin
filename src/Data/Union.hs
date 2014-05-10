@@ -13,13 +13,19 @@
 module Data.Union (
     Union, Member,
     inject, project,
-    reduce, withUnion,
-    absurdUnion
+    reduce, flatten,
+    withUnion, absurdUnion,
+
+    KnownList, type (++)
 ) where
 
 import Unsafe.Coerce (unsafeCoerce)
 
 -- Union -----------------------------------------------------------------------
+
+-- | Represents a union of the list of type constructors in @es@ parameterized
+-- by @a@. As an effect, it represents the union of each type constructor's
+-- corresponding effect.
 data Union es a where
     Union :: Functor e => Index e es -> e a -> Union es a
 
@@ -39,6 +45,13 @@ project (Union (Index i) x)
 reduce :: Union (e ': es) a -> Either (Union es a) (e a)
 reduce (Union (Index 0) x) = Right (unsafeCoerce x)
 reduce (Union (Index n) x) = Left (Union (Index (n - 1)) x)
+
+flatten :: KnownList es => Union (Union es ': fs) a -> Union (es ++ fs) a
+flatten = flatten' size . reduce
+  where
+    flatten' :: Size es -> Either (Union fs a) (Union es a) -> Union (es ++ fs) a
+    flatten' _ (Right (Union (Index i) x)) = Union (Index i) x
+    flatten' (Size n) (Left (Union (Index i) x)) = Union (Index (n + i)) x
 
 withUnion :: (forall e. Member e es => e a -> r) -> Union es a -> r
 withUnion f (Union i x) = withIndex (f x) i
@@ -61,12 +74,11 @@ instance Member' e (e ': es) Z where
 
 instance (Member' e es n, IndexOf e (f ': es) ~ S n) => Member' e (f ': es) (S n) where
     index = incr index
+      where
+        incr :: Index e es -> Index e (f ': es)
+        incr (Index i) = Index (i + 1)
 
--- Member Indices --------------------------------------------------------------
-data Index (e :: * -> *) (es :: [* -> *]) = Index Integer
-
-incr :: Index e es -> Index e (f ': es)
-incr (Index i) = Index (i + 1)
+newtype Index (e :: * -> *) (es :: [* -> *]) = Index Integer
 
 withIndex :: Functor e => (Member e es => r) -> Index e es -> r
 withIndex = unsafeCoerce
@@ -77,3 +89,23 @@ data N = Z | S N
 type family IndexOf (t :: * -> *) ts where
     IndexOf t (t ': ts) = Z
     IndexOf t (u ': ts) = S (IndexOf t ts)
+
+-- Type Level Lists ------------------------------------------------------------
+newtype Size (es :: [* -> *]) = Size Integer
+
+-- | A 'known list' is a type level list who's size is known at compile time.
+class KnownList es where
+    size :: Size es
+
+instance KnownList '[] where
+    size = Size 0
+
+instance KnownList es => KnownList (e ': es) where
+    size = incr size
+      where
+        incr :: Size es -> Size (e ': es)
+        incr (Size n) = Size (n + 1)
+
+type family es ++ fs :: [* -> *] where
+    '[] ++ fs = fs
+    (e ': es) ++ fs = e ': (es ++ fs)

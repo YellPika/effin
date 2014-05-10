@@ -16,9 +16,9 @@ module Control.Monad.Effect (
     -- * Effect Handlers
     -- | The following types and functions form a small DSL that allows users to
     -- specify how to handle effects. A handler can be formed by a call to
-    -- `handle`, followed by a chain of calls to `eliminate` and `intercept`,
-    -- and ending in either a `defaultRelay`, `emptyRelay`, or a call to
-    -- `relay`.
+    -- `handle`, followed by a chain of calls to `eliminate`, `intercept`, and
+    -- `collapse`, ended by either a `defaultRelay`, `emptyRelay`, or a call to
+    -- `relay` or `relayUnion`.
     --
     -- For example, the following is a handler for the state effect.
     --
@@ -35,11 +35,11 @@ module Control.Monad.Effect (
     -- >         return (continue state))
     --
     -- As an analogy to monads, `handle` lets you specify the return function,
-    -- while `eliminate`, `intercept`, and `relay` let you specify the bind
-    -- function.
+    -- while `eliminate`, `intercept`, `relay`, and `relayUnion` let you specify
+    -- the bind function.
     Handler, handle,
-    eliminate, intercept,
-    relay, defaultRelay, emptyRelay,
+    eliminate, intercept, collapse,
+    relay, relayUnion, defaultRelay, emptyRelay,
 
     -- * Membership
     Member
@@ -47,7 +47,7 @@ module Control.Monad.Effect (
 
 import Control.Applicative (Applicative (..))
 import Control.Monad (join)
-import Data.Union (Union, Member, inject, project, reduce, withUnion, absurdUnion)
+import Data.Union
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
@@ -104,10 +104,20 @@ eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
 intercept bind (Handler pass) = Handler $ \u -> maybe (pass u) bind (project u)
 
+-- | Provides a way to deal with nested effects (effects that are unions of
+-- other effects. The size of the list must be known at compile time.
+collapse :: KnownList es => Handler (es ++ fs) b -> Handler (Union es ': fs) b
+collapse (Handler pass) = Handler (pass . flatten)
+
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.
 relay :: (forall e. Member e es => e b -> b) -> Handler es b
 relay f = Handler (withUnion f)
+
+-- | Computes a basis handler. Provides a way to pass on effects of unknown
+-- types. In most cases, `defaultRelay` is sufficient.
+relayUnion :: (Union es b -> b) -> Handler es b
+relayUnion = Handler
 
 -- | Relays all effects without examining them.
 --
