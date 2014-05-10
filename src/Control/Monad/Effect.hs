@@ -51,6 +51,11 @@ import Data.Union
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.
+-- The definition is isomorphic to the following GADT:
+--
+-- > data Effect es a where
+-- >     Done :: a -> Effect es a
+-- >     Side :: `Union` es (Effect es a) -> Effect es a
 data Effect es a = Effect {
     unEffect :: forall r. (a -> r) -> (Union es r -> r) -> r
 } deriving Functor
