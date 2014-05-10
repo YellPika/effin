@@ -14,10 +14,9 @@ import Control.Monad.Effect (Effect, Member, send, handle, eliminate, emptyRelay
 
 -- | An effect described by a monad.
 -- All monads are functors, but not all `Monad`s have `Functor` instances.
--- Since all effects must have `Functor` instances, this type ensures that
--- all monads can be used by providing a `Functor` instance derived from a
--- `Monad` instance.
-data Lift m a = Lift { unLift :: m a }
+-- By wrapping a monad in the `Lift` effect, all monads can be used without
+-- having to provide a `Functor` instance for each one.
+newtype Lift m a = Lift { unLift :: m a }
 
 instance Monad m => Functor (Lift m) where
     fmap f = Lift . liftM f . unLift

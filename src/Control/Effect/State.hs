@@ -17,7 +17,7 @@ import Control.Applicative ((<$>))
 import Control.Monad.Effect (Effect, Member, send, sendEffect, handle, eliminate, relay)
 
 -- | An effect where a state value is threaded throughout the computation.
-data State s a = State (s -> (s, a))
+newtype State s a = State (s -> (s, a))
   deriving Functor
 
 type EffectState s es = (Member (State s) es, s ~ StateType es)

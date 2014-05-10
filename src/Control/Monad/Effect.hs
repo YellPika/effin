@@ -19,7 +19,7 @@ module Control.Monad.Effect (
     -- `handle`, followed by a chain of calls to `eliminate`, `intercept`, and
     -- ended by either a `defaultRelay`, `emptyRelay`, or a call to `relay`.
     --
-    -- For example, the following is a handler for the state effect.
+    -- For example, a possible handler for the state effect would be:
     --
     -- > data State s a = State (s -> (s, a))
     -- >
