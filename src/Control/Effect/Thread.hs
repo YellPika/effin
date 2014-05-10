@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Control.Effect.Thread (
-    Thread, EffectThread,
+    EffectThread, Thread,
     runMain, runSync, runAsync,
     yield, fork, abort,
 ) where

@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Control.Effect.Union (
-    Union, runUnion, nest,
+    EffectUnion, Union, runUnion, nest,
     KnownList, type (++),
 ) where
 

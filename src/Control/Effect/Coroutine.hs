@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Control.Effect.Coroutine (
-    Coroutine, Iterator (..), EffectCoroutine, runCoroutine, suspend
+    EffectCoroutine, Coroutine, Iterator (..), runCoroutine, suspend
 ) where
 
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, defaultRelay)

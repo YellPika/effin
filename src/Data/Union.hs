@@ -106,6 +106,7 @@ instance KnownList es => KnownList (e ': es) where
         incr :: Size es -> Size (e ': es)
         incr (Size n) = Size (n + 1)
 
+-- | Type level list append.
 type family es ++ fs :: [* -> *] where
     '[] ++ fs = fs
     (e ': es) ++ fs = e ': (es ++ fs)
