@@ -1,9 +1,17 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+#if MTL
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
 
 module Control.Effect.State (
     EffectState, State, runState,
@@ -16,8 +24,17 @@ module Control.Effect.State (
 import Control.Applicative ((<$>))
 import Control.Monad.Effect
 
+#ifdef MTL
+import qualified Control.Monad.State.Class as S
+
+instance EffectState s es => S.MonadState s (Effect es) where
+    get = get
+    put = put
+    state = state
+#endif
+
 -- | An effect where a state value is threaded throughout the computation.
-newtype State s a = State (s -> (s, a))
+newtype State s a = State (s -> (a, s))
   deriving Functor
 
 type EffectState s es = (Member (State s) es, s ~ StateType es)
@@ -35,7 +52,7 @@ gets f = f <$> get
 
 -- | Replaces the current state.
 put :: EffectState s es => s -> Effect es ()
-put x = state $ const (x, ())
+put x = state $ const ((), x)
 
 -- | Applies a pure modifier to the state value.
 modify :: EffectState s es => (s -> s) -> Effect es ()
@@ -49,7 +66,7 @@ modify' f = do
     put $! f x
 
 -- | Lifts a stateful computation to the `Effect` monad.
-state :: EffectState s es => (s -> (s, a)) -> Effect es a
+state :: EffectState s es => (s -> (a, s)) -> Effect es a
 state = send . State
 
 -- | Runs a computation with a modified state value.
@@ -60,16 +77,16 @@ withState f x = modify f >> x
 
 -- | Completely handles a `State` effect by providing an
 -- initial state, and making the final state explicit.
-runState :: s -> Effect (State s ': es) a -> Effect es (s, a)
+runState :: s -> Effect (State s ': es) a -> Effect es (a, s)
 runState = flip $
-    handle (\x s -> return (s, x))
-    $ eliminate (\(State k) s -> let (s', k') = k s in k' s')
+    handle (\x s -> return (x, s))
+    $ eliminate (\(State k) s -> let (k', s') = k s in k' s')
     $ relay (\x s -> sendEffect $ fmap ($ s) x)
 
 -- | Completely handles a `State` effect, and discards the final state.
 evalState :: s -> Effect (State s ': es) a -> Effect es a
-evalState s = fmap snd . runState s
+evalState s = fmap fst . runState s
 
 -- | Completely handles a `State` effect, and discards the final value.
 execState :: s -> Effect (State s ': es) a -> Effect es s
-execState s = fmap fst . runState s
+execState s = fmap snd . runState s

@@ -1,9 +1,17 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+#if MTL
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
 
 module Control.Effect.Reader (
 	EffectReader, Reader, runReader,
@@ -11,6 +19,15 @@ module Control.Effect.Reader (
 ) where
 
 import Control.Monad.Effect
+
+#ifdef MTL
+import qualified Control.Monad.Reader.Class as R
+
+instance EffectReader r es => R.MonadReader r (Effect es) where
+    ask = ask
+    local = local
+    reader = asks
+#endif
 
 -- | An effect that describes an implicit environment.
 newtype Reader r a = Reader (r -> a)
