@@ -1,9 +1,17 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+#if MTL
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
 
 module Control.Effect.Exception (
     EffectException, Exception, runException,
@@ -11,6 +19,14 @@ module Control.Effect.Exception (
 ) where
 
 import Control.Monad.Effect
+
+#ifdef MTL
+import qualified Control.Monad.Error.Class as E
+
+instance EffectException e es => E.MonadError e (Effect es) where
+    throwError = raise
+    catchError = except
+#endif
 
 -- | An effect that describes the possibility of failure.
 newtype Exception e a = Exception { unException :: e }
