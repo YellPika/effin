@@ -5,7 +5,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Control.Effect.Lift where
+module Control.Effect.Lift (
+    Lift, runLift, lift
+) where
 
 import Control.Monad (join, liftM)
 import Control.Monad.Effect (Effect, Member, send, handle, eliminate, emptyRelay)
