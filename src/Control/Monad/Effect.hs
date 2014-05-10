@@ -44,7 +44,7 @@ module Control.Monad.Effect (
     Member
 ) where
 
-import Control.Applicative (Applicative (..))
+import Control.Applicative (Applicative (..), (<$>))
 import Control.Monad (join)
 import Data.Union
 
@@ -75,7 +75,7 @@ runEffect (Effect f) = f id absurdUnion
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
 send :: Member e es => e a -> Effect es a
-send x = Effect $ \point bind -> bind $ inject $ fmap point x
+send x = Effect $ \point bind -> bind $ inject $ point <$> x
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
 sendEffect :: Member e es => e (Effect es a) -> Effect es a
@@ -106,7 +106,8 @@ eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 -- function is passed an effect value parameterized by the output type (i.e. the
 -- return type of `handle`).
 intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
-intercept bind (Handler pass) = Handler $ \u -> maybe (pass u) bind (project u)
+intercept bind (Handler pass) = Handler $ \u ->
+    maybe (pass u) bind (project u)
 
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.
