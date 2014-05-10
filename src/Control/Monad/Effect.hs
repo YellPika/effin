@@ -44,9 +44,9 @@ module Control.Monad.Effect (
     Member
 ) where
 
+import Data.Union
 import Control.Applicative (Applicative (..), (<$>))
 import Control.Monad (join)
-import Data.Union
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
 -- specified by the list of effects @es@ before returning a result of type @a@.

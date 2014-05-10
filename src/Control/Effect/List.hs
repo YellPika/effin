@@ -14,10 +14,10 @@ module Control.Effect.List (
     cut, runCut
 ) where
 
+import Control.Monad.Effect
 import Control.Arrow (second)
 import Control.Applicative (Alternative (..), (<$>))
 import Control.Monad (MonadPlus (..), (<=<), join)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 
 -- | Describes a nondeterminism (backtracking) effect.
 newtype List a = List { unList :: [a] }

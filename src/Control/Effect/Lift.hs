@@ -9,8 +9,8 @@ module Control.Effect.Lift (
     Lift, runLift, lift
 ) where
 
+import Control.Monad.Effect
 import Control.Monad (join, liftM)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, emptyRelay)
 
 -- | An effect described by a monad.
 -- All monads are functors, but not all `Monad`s have `Functor` instances.

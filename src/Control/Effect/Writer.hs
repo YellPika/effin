@@ -10,9 +10,9 @@ module Control.Effect.Writer (
     tell, listen, listens, pass, censor
 ) where
 
+import Control.Monad.Effect
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
-import Control.Monad.Effect (Effect, Member, send, handle, eliminate, intercept, defaultRelay)
 import Data.Monoid (Monoid (..))
 
 -- | An effect that allows accumulating output.
