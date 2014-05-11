@@ -67,6 +67,9 @@ absurdUnion _ = error "absurdUnion"
 class (Functor t, Member' t ts (IndexOf t ts)) => Member t ts where
     index :: Index t ts
 
+    -- Default definition hides "Minimal complete definition" section.
+    index = undefined
+
 instance (Functor t, Member' t ts (IndexOf t ts)) => Member t ts where
     index = index' (Proxy :: Proxy (IndexOf t ts))
 
