@@ -12,7 +12,7 @@
 #endif
 
 module Control.Effect.Lift (
-    Lift, runLift, lift
+    EffectLift, Lift, runLift, lift
 ) where
 
 import Control.Monad.Effect
