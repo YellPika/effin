@@ -19,6 +19,7 @@ module Data.Union (
     KnownList, type (++)
 ) where
 
+import Data.Proxy (Proxy (..))
 import Unsafe.Coerce (unsafeCoerce)
 
 -- Union -----------------------------------------------------------------------
@@ -54,7 +55,7 @@ flatten = flatten' size . reduce
     flatten' (Size n) (Left (Union (Index i) x)) = Union (Index (n + i)) x
 
 withUnion :: (forall e. Member e es => e a -> r) -> Union es a -> r
-withUnion f (Union i x) = withIndex (f x) i
+withUnion f (Union i x) = withIndex (f x) (\Proxy -> i)
 
 absurdUnion :: Union '[] a -> b
 absurdUnion _ = error "absurdUnion"
@@ -63,24 +64,30 @@ absurdUnion _ = error "absurdUnion"
 
 -- | A constraint that requires that the type constructor @t :: * -> *@ is a
 -- member of the list of types @ts :: [* -> *]@.
-class (Functor t, Member' t ts (IndexOf t ts)) => Member t ts
-instance (Functor t, Member' t ts (IndexOf t ts)) => Member t ts
+class (Functor t, Member' t ts (IndexOf t ts)) => Member t ts where
+    index :: Index t ts
 
-class n ~ IndexOf e es => Member' e es n where
-    index :: Index e es
+instance (Functor t, Member' t ts (IndexOf t ts)) => Member t ts where
+    index = index' (Proxy :: Proxy (IndexOf t ts))
+
+class Member' e es (n :: N) where
+    index' :: Proxy n -> Index e es
 
 instance Member' e (e ': es) Z where
-    index = Index 0
+    index' _ = Index 0
 
 instance (Member' e es n, IndexOf e (f ': es) ~ S n) => Member' e (f ': es) (S n) where
-    index = incr index
+    index' p = incr (index' (decr p))
       where
         incr :: Index e es -> Index e (f ': es)
         incr (Index i) = Index (i + 1)
 
+        decr :: Proxy (S n) -> Proxy n
+        decr Proxy = Proxy
+
 newtype Index (e :: * -> *) (es :: [* -> *]) = Index Integer
 
-withIndex :: Functor e => (Member e es => r) -> Index e es -> r
+withIndex :: (Member' e es (IndexOf e es) => r) -> (Proxy (IndexOf e es) -> Index e es) -> r
 withIndex = unsafeCoerce
 
 -- Type Level Indices ----------------------------------------------------------
