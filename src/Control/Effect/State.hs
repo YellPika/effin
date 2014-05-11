@@ -1,15 +1,14 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-
-#if MTL
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if MTL
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 #endif
 
@@ -37,7 +36,9 @@ instance EffectState s es => S.MonadState s (Effect es) where
 newtype State s a = State (s -> (a, s))
   deriving Functor
 
-type EffectState s es = (Member (State s) es, s ~ StateType es)
+class (Member (State s) es, s ~ StateType es) => EffectState s es
+instance (Member (State s) es, s ~ StateType es) => EffectState s es
+
 type family StateType es where
     StateType (State s ': es) = s
     StateType (e ': es) = StateType es

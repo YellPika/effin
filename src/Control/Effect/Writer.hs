@@ -1,15 +1,14 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-
-#if MTL
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if MTL
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 #endif
 
@@ -36,7 +35,9 @@ instance EffectWriter e es => W.MonadWriter e (Effect es) where
 data Writer w a = Writer w a
   deriving Functor
 
-type EffectWriter w es = (Monoid w, Member (Writer w) es, w ~ WriterType es)
+class (Monoid w, Member (Writer w) es, w ~ WriterType es) => EffectWriter w es
+instance (Monoid w, Member (Writer w) es, w ~ WriterType es) => EffectWriter w es
+
 type family WriterType es where
     WriterType (Writer w ': es) = w
     WriterType (t ': es) = WriterType es

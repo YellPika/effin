@@ -1,8 +1,10 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Union (
     EffectUnion, Union, runUnion, nest,
@@ -12,7 +14,9 @@ module Control.Effect.Union (
 import Control.Monad.Effect
 import Data.Union
 
-type EffectUnion es fs = (KnownList es, Member (Union es) fs, es ~ UnionType fs)
+class (KnownList es, Member (Union es) fs, es ~ UnionType fs) => EffectUnion es fs
+instance (KnownList es, Member (Union es) fs, es ~ UnionType fs) => EffectUnion es fs
+
 type family UnionType fs where
     UnionType (Union es ': fs) = es
     UnionType (f ': fs) = UnionType fs

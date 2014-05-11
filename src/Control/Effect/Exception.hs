@@ -1,15 +1,14 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-
-#if MTL
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if MTL
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 #endif
 
@@ -32,7 +31,9 @@ instance EffectException e es => E.MonadError e (Effect es) where
 newtype Exception e a = Exception { unException :: e }
   deriving Functor
 
-type EffectException e es = (Member (Exception e) es, e ~ ExceptionType es)
+class (Member (Exception e) es, e ~ ExceptionType es) => EffectException e es
+instance (Member (Exception e) es, e ~ ExceptionType es) => EffectException e es
+
 type family ExceptionType es where
     ExceptionType (Exception e ': es) = e
     ExceptionType (e ': es) = ExceptionType es

@@ -1,8 +1,9 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Thread (
     EffectThread, Thread,
@@ -20,7 +21,8 @@ import qualified Control.Concurrent as IO
 data Thread a = Yield a | Fork a a | Abort
   deriving Functor
 
-type EffectThread = Member Thread
+class Member Thread es => EffectThread es
+instance Member Thread es => EffectThread es
 
 -- | Yields to the next available thread.
 yield :: EffectThread es => Effect es ()

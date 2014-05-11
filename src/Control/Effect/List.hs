@@ -1,7 +1,7 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -23,7 +23,8 @@ import Control.Monad (MonadPlus (..), (<=<), join)
 newtype List a = List { unList :: [a] }
   deriving Functor
 
-type EffectList = Member List
+class Member List es => EffectList es
+instance Member List es => EffectList es
 
 -- | Nondeterministically chooses a value from the input list.
 choose :: EffectList es => [a] -> Effect es a
@@ -58,7 +59,8 @@ instance EffectList es => MonadPlus (Effect es) where
 data Cut a = Cut
   deriving Functor
 
-type EffectCut = Member Cut
+class Member Cut es => EffectCut es
+instance Member Cut es => EffectCut es
 
 -- | Prevents backtracking past the point this value was invoked.
 -- Unlike Prolog's '!' operator, `cut` will cause the current

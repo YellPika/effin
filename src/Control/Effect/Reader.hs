@@ -1,15 +1,14 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-
-#if MTL
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if MTL
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 #endif
 
@@ -33,7 +32,9 @@ instance EffectReader r es => R.MonadReader r (Effect es) where
 newtype Reader r a = Reader (r -> a)
   deriving Functor
 
-type EffectReader r es = (Member (Reader r) es, r ~ ReaderType es)
+class (Member (Reader r) es, r ~ ReaderType es) => EffectReader r es
+instance (Member (Reader r) es, r ~ ReaderType es) => EffectReader r es
+
 type family ReaderType es where
     ReaderType (Reader r ': es) = r
     ReaderType (e ': es) = ReaderType es

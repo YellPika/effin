@@ -1,9 +1,11 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Coroutine (
     EffectCoroutine, Coroutine, Iterator (..), runCoroutine, suspend
@@ -22,7 +24,9 @@ data Iterator i o es a
     -- ^ Describes a computation that provided a value
     -- of type `i` and awaits a value of type `o`.
 
-type EffectCoroutine i o es = (Member (Coroutine i o) es, '(i, o) ~ CoroutineType es)
+class (Member (Coroutine i o) es, '(i, o) ~ CoroutineType es) => EffectCoroutine i o es
+instance (Member (Coroutine i o) es, '(i, o) ~ CoroutineType es) => EffectCoroutine i o es
+
 type family CoroutineType es where
     CoroutineType (Coroutine i o ': es) = '(i, o)
     CoroutineType (e ': es) = CoroutineType es

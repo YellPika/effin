@@ -1,13 +1,14 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 #ifdef MTL
-{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 #endif
 
@@ -34,7 +35,9 @@ newtype Lift m a = Lift { unLift :: m a }
 instance Monad m => Functor (Lift m) where
     fmap f = Lift . liftM f . unLift
 
-type EffectLift m es = (Member (Lift m) es, m ~ LiftType es, Monad m)
+class (Member (Lift m) es, m ~ LiftType es, Monad m) => EffectLift m es
+instance (Member (Lift m) es, m ~ LiftType es, Monad m) => EffectLift m es
+
 type family LiftType es where
     LiftType (Lift m ': es) = m
     LiftType (e ': es) = LiftType es
