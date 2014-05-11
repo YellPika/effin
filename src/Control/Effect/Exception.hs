@@ -22,7 +22,7 @@ import Control.Monad.Effect
 #ifdef MTL
 import qualified Control.Monad.Error.Class as E
 
-instance EffectException e es => E.MonadError e (Effect es) where
+instance (Member (Exception e) es, e ~ ExceptionType es) => E.MonadError e (Effect es) where
     throwError = raise
     catchError = except
 #endif

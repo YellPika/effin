@@ -22,7 +22,7 @@ import Control.Monad.Effect
 #ifdef MTL
 import qualified Control.Monad.Reader.Class as R
 
-instance EffectReader r es => R.MonadReader r (Effect es) where
+instance (Member (Reader r) es, r ~ ReaderType es) => R.MonadReader r (Effect es) where
     ask = ask
     local = local
     reader = asks

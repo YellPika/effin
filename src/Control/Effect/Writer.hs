@@ -25,7 +25,7 @@ import Data.Monoid (Monoid (..))
 #ifdef MTL
 import qualified Control.Monad.Writer.Class as W
 
-instance EffectWriter e es => W.MonadWriter e (Effect es) where
+instance (Monoid w, Member (Writer w) es, w ~ WriterType es) => W.MonadWriter w (Effect es) where
     tell = tell
     listen = listen
     pass = pass

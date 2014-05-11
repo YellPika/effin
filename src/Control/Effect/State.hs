@@ -26,7 +26,7 @@ import Control.Monad.Effect
 #ifdef MTL
 import qualified Control.Monad.State.Class as S
 
-instance EffectState s es => S.MonadState s (Effect es) where
+instance (Member (State s) es, s ~ StateType es) => S.MonadState s (Effect es) where
     get = get
     put = put
     state = state
