@@ -6,6 +6,7 @@ module Control.Effect (
     module Control.Effect.Reader,
     module Control.Effect.State,
     module Control.Effect.Thread,
+    module Control.Effect.Union,
     module Control.Effect.Writer,
     module Control.Monad.Effect
 ) where
@@ -17,5 +18,6 @@ import Control.Effect.List
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Thread
+import Control.Effect.Union
 import Control.Effect.Writer
 import Control.Monad.Effect
