@@ -55,7 +55,7 @@ import Control.Monad (join)
 -- > data Effect es a where
 -- >     Done :: a -> Effect es a
 -- >     Side :: `Union` es (Effect es a) -> Effect es a
-data Effect es a = Effect {
+newtype Effect es a = Effect {
     unEffect :: forall r. (a -> r) -> (Union es r -> r) -> r
 } deriving Functor
 
@@ -84,7 +84,7 @@ sendEffect = join . send
 -- | A handler for an effectful computation.
 -- Combined with 'handle', allows one to convert a computation
 -- parameterized by the effect list @es@ to a value of type @a@.
-data Handler es a = Handler (Union es a -> a)
+newtype Handler es a = Handler (Union es a -> a)
 
 -- | @handle p h@ transforms an effect into a value of type @b@.
 --
