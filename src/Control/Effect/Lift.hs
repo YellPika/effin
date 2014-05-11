@@ -1,9 +1,15 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+#ifdef MTL
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
 
 module Control.Effect.Lift (
     Lift, runLift, lift
@@ -11,6 +17,13 @@ module Control.Effect.Lift (
 
 import Control.Monad.Effect
 import Control.Monad (join, liftM)
+
+#ifdef MTL
+import Control.Monad.Trans (MonadIO (..))
+
+instance EffectLift IO es => MonadIO (Effect es) where
+    liftIO = lift
+#endif
 
 -- | An effect described by a monad.
 -- All monads are functors, but not all `Monad`s have `Functor` instances.
