@@ -45,3 +45,7 @@ library
 
   if flag(mtl)
     cpp-options: -DMTL
+
+source-repository head
+  type:     git
+  location: git://github.com/YellPika/effin.git
