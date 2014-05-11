@@ -1,9 +1,17 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+#if MTL
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
 
 module Control.Effect.Writer (
     EffectWriter, Writer, runWriter,
@@ -14,6 +22,15 @@ import Control.Monad.Effect
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
 import Data.Monoid (Monoid (..))
+
+#ifdef MTL
+import qualified Control.Monad.Writer.Class as W
+
+instance EffectWriter e es => W.MonadWriter e (Effect es) where
+    tell = tell
+    listen = listen
+    pass = pass
+#endif
 
 -- | An effect that allows accumulating output.
 data Writer w a = Writer w a
@@ -56,10 +73,9 @@ pass effect = do
 
 -- | Applies a function to the writer output of a computation.
 censor :: EffectWriter w es => (w -> w) -> Effect es a -> Effect es a
-censor f =
-    handle return
-    $ intercept (\(Writer l k) -> tell (f l) >> k)
-    $ defaultRelay
+censor f effect = pass $ do
+    a <- effect
+    return (a, f)
 
 -- | Completely handles a writer effect. The writer value must be a `Monoid`.
 -- `mempty` is used as an initial value, and `mappend` is used to combine values.
