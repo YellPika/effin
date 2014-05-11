@@ -26,7 +26,8 @@ description:
   >     $ eliminate (\(Exception e) -> return (Left e))
   >     $ defaultRelay
   .
-  Compare this to the corresponding code in extensible-effects:
+  Compare this to the corresponding code in extensible-effects
+  (<http://hackage.haskell.org/package/extensible-effects>):
   .
   > runExc :: Typeable e => Eff (Exc e :> r) a -> Eff r (Either e a)
   > runExc = loop . admin
