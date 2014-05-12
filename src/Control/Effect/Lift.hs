@@ -14,7 +14,7 @@
 #endif
 
 module Control.Effect.Lift (
-    EffectLift, Lift (..), runLift, lift
+    EffectLift, Lift (..), runLift, lift, liftEffect
 ) where
 
 import Control.Monad.Effect
@@ -46,6 +46,10 @@ type family LiftType es where
 -- | Lifts a monadic value into an effect.
 lift :: EffectLift m es => m a -> Effect es a
 lift = send . Lift
+
+-- | Lifts a monadic value into an effect.
+liftEffect :: EffectLift m es => m (Effect es a) -> Effect es a
+liftEffect = sendEffect . Lift
 
 -- | Converts a computation containing only monadic
 -- effects into a monadic computation.

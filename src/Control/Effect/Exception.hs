@@ -79,7 +79,7 @@ runException =
 runIOException :: EffectLift IO es => Effect (Exception SomeException ': es) a -> Effect es (Either SomeException a)
 runIOException =
     ( handle (return . Right)
-    $ intercept (\(Lift m) -> sendEffect $ Lift $ m `catch` (return . return . Left))
+    $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . return . Left))
     $ defaultRelay
     ) . run
   where
@@ -93,5 +93,5 @@ runIOException =
 
     runCatch handler =
         handle return
-        $ intercept (\(Lift m) -> sendEffect $ Lift $ m `catch` (return . handler))
+        $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . handler))
         $ defaultRelay
