@@ -13,10 +13,12 @@
 #endif
 
 module Control.Effect.Exception (
-    EffectException, Exception, runException,
+    EffectException, Exception, runException, runIOException,
     raise, except, finally
 ) where
 
+import Control.Exception (SomeException (..), catch, throwIO)
+import Control.Effect.Lift
 import Control.Monad.Effect
 
 #ifdef MTL
@@ -28,7 +30,7 @@ instance (Member (Exception e) es, e ~ ExceptionType es) => E.MonadError e (Effe
 #endif
 
 -- | An effect that describes the possibility of failure.
-newtype Exception e a = Exception { unException :: e }
+data Exception e a = Raise e | Catch a (e -> a)
   deriving Functor
 
 class (Member (Exception e) es, e ~ ExceptionType es) => EffectException e es
@@ -40,18 +42,13 @@ type family ExceptionType es where
 
 -- | Raises an exception.
 raise :: EffectException e es => e -> Effect es a
-raise = send . Exception
+raise = send . Raise
 
 -- | Handles an exception. Intended to be used in infix form.
 --
 -- > myComputation `except` \ex -> doSomethingWith ex
 except :: EffectException e es => Effect es a -> (e -> Effect es a) -> Effect es a
-except = flip run
-  where
-    run handler =
-        handle return
-        $ intercept (handler . unException)
-        $ defaultRelay
+except x f = sendEffect (Catch x f)
 
 -- | Ensures that a computation is run after another one completes,
 -- regardless of whether an exception was raised. Intended to be
@@ -70,6 +67,31 @@ finally effect finalizer = do
 -- | Completely handles an exception effect.
 runException :: Effect (Exception e ': es) a -> Effect es (Either e a)
 runException =
-    handle (return . Right)
-    $ eliminate (return . Left . unException)
+    handle point
+    $ eliminate bind
     $ defaultRelay
+  where
+    point = return . Right
+
+    bind (Raise e) = return (Left e)
+    bind (Catch x f) = x >>= either f point
+
+runIOException :: EffectLift IO es => Effect (Exception SomeException ': es) a -> Effect es (Either SomeException a)
+runIOException =
+    ( handle (return . Right)
+    $ intercept (\(Lift m) -> sendEffect $ Lift $ m `catch` (return . return . Left))
+    $ defaultRelay
+    ) . run
+  where
+    run =
+        handle return
+        $ eliminate bind
+        $ defaultRelay
+
+    bind (Raise (SomeException e)) = lift $ throwIO e
+    bind (Catch x f) = runCatch f x
+
+    runCatch handler =
+        handle return
+        $ intercept (\(Lift m) -> sendEffect $ Lift $ m `catch` (return . handler))
+        $ defaultRelay

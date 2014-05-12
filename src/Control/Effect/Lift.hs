@@ -14,7 +14,7 @@
 #endif
 
 module Control.Effect.Lift (
-    EffectLift, Lift, runLift, lift
+    EffectLift, Lift (..), runLift, lift
 ) where
 
 import Control.Monad.Effect
