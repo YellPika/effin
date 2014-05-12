@@ -76,22 +76,26 @@ runException =
     bind (Raise e) = return (Left e)
     bind (Catch x f) = x >>= either f point
 
+-- | Completely handle all exceptions in the IO monad. This handler allows
+-- exceptions thrown via `throw`/`throwIO` to be caught using `except`.
 runIOException :: EffectLift IO es => Effect (Exception SomeException ': es) a -> Effect es (Either SomeException a)
-runIOException =
-    ( handle (return . Right)
-    $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . return . Left))
-    $ defaultRelay
-    ) . run
+runIOException = catchAll . bakeExceptions
   where
-    run =
+    -- Catch any remaining exceptions and convert them to Either values.
+    catchAll =
+        handle (return . Right)
+        $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . return . Left))
+        $ defaultRelay
+
+    -- Convert calls to raise/except into calls to throwIO and catch.
+    bakeExceptions =
         handle return
         $ eliminate bind
         $ defaultRelay
 
     bind (Raise (SomeException e)) = lift $ throwIO e
-    bind (Catch x f) = runCatch f x
-
-    runCatch handler =
-        handle return
+    bind (Catch effect handler) =
+        ( handle return
         $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . handler))
         $ defaultRelay
+        ) effect
