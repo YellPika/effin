@@ -58,7 +58,7 @@ local f effect = do
         $ intercept (bind env)
         $ defaultRelay
 
--- | Completely handes a `Reader` effect by providing an
+-- | Completely handles a `Reader` effect by providing an
 -- environment value to be used throughout the computation.
 runReader :: r -> Effect (Reader r ': es) a -> Effect es a
 runReader env =
