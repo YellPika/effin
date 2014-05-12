@@ -21,21 +21,10 @@ import Control.Monad.Effect
 import Control.Monad (join, liftM)
 
 #ifdef MTL
-import Control.Exception (IOException, catch)
-import Control.Monad.Error (MonadError (..))
 import Control.Monad.Trans (MonadIO (..))
 
 instance EffectLift IO es => MonadIO (Effect es) where
     liftIO = lift
-
-instance EffectLift IO es => MonadError IOException (Effect es) where
-    throwError = lift . ioError
-    catchError = flip run
-      where
-        run handler =
-            handle return
-            $ intercept (\(Lift m) -> sendEffect $ Lift $ m `catch` (return . handler))
-            $ defaultRelay
 #endif
 
 -- | An effect described by a monad.
