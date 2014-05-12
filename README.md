@@ -28,3 +28,14 @@ In particular:
 
 * Effect implementors are not required to do any recursion.
 * The functions for writing effect handlers can be easily composed.
+
+Future Work
+===========
+
+* Support for GHC 7.6. This will require some very heavy abuse of OverlappingInstances, but it can be done.
+* Encapsulation of effects. Encapsulation of effects requires the ability to group and rename effects.
+Only the grouping is currently supported (via the `Union` effect). Renaming is much tricker.
+* Improved exceptions. Currently:
+  * There is no way to ensure a block of code will be run regardless of _any_ exceptions thrown.
+  The `finally` function only works with an exception of a single type.
+  * IO/Async exceptions aren't yet supported.
