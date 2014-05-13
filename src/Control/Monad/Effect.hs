@@ -37,7 +37,7 @@ module Control.Monad.Effect (
     -- while `eliminate`, `intercept`, and `relay`, let you specify the bind
     -- function.
     Handler, handle,
-    eliminate, intercept,
+    eliminate, intercept, ignore,
     relay, defaultRelay, emptyRelay,
 
     -- * Membership
@@ -108,6 +108,10 @@ eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
 intercept bind (Handler pass) = Handler $ \u ->
     maybe (pass u) bind (project u)
+
+-- | Provides a way to add arbitrary effects to the head of the effect list.
+ignore :: Handler (e ': es) a -> Handler es a
+ignore (Handler bind) = Handler (bind . expand)
 
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.

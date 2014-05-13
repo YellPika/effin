@@ -13,7 +13,7 @@
 module Data.Union (
     Union, Member,
     inject, project,
-    reduce, flatten,
+    reduce, flatten, expand,
     withUnion, absurdUnion,
 
     KnownList, type (++)
@@ -53,6 +53,9 @@ flatten = flatten' size . reduce
     flatten' :: Size es -> Either (Union fs a) (Union es a) -> Union (es ++ fs) a
     flatten' _ (Right (Union (Index i) x)) = Union (Index i) x
     flatten' (Size n) (Left (Union (Index i) x)) = Union (Index (n + i)) x
+
+expand :: Union es a -> Union (e ': es) a
+expand (Union (Index i) x) = Union (Index (i + 1)) x
 
 withUnion :: (forall e. Member e es => e a -> r) -> Union es a -> r
 withUnion f (Union i x) = withIndex (f x) (\Proxy -> i)
