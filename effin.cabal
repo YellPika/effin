@@ -58,6 +58,7 @@ library
     Control.Effect.State,
     Control.Effect.Thread,
     Control.Effect.Union,
+    Control.Effect.Witness,
     Control.Effect.Writer,
     Control.Monad.Effect
 
