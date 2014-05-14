@@ -11,7 +11,7 @@
 
 module Control.Effect.Bracket (
     EffectBracket, Bracket, runBracket,
-    Tag, newTag, raiseWith, exceptWith, bracket
+    Tag, newTag, raiseWith, exceptWith, bracket, finally
 ) where
 
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
@@ -77,6 +77,14 @@ bracket acquire destroy run = do
         (run resource)
     destroy resource
     return result
+
+-- | A specialized version of `bracket` which
+-- does not require an 'acuiqre' operation.
+finally :: EffectBracket s es => Effect es a -> Effect es () -> Effect es a
+finally effect finalizer = bracket
+    (return ())
+    (\() -> finalizer)
+    (\() -> effect)
 
 -- | Executes a `Bracket` effect. The Rank-2 type ensures that `Tag`s do not
 -- escape their scope.
