@@ -11,9 +11,11 @@
 
 module Control.Effect.Bracket (
     EffectBracket, Bracket, runBracket,
-    Tag, newTag, raiseWith, exceptWith, bracket, finally
+    Tag, newTag, raiseWith, exceptWith, exceptAny, bracket, finally
 ) where
 
+import Control.Applicative ((<$>))
+import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
 import Data.Union
 import Control.Effect.Union
@@ -25,11 +27,17 @@ import Control.Monad.Effect
 newtype Bracket s a = Bracket { unBracket :: Union '[Raise s, Witness s] a }
   deriving Functor
 
-class (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
-instance (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
-
 -- | The type of placeholder values indicating an exception class.
 data Tag s a = Tag (a -> String) (Token s a)
+
+instance TestEquality (Tag s) where
+    testEquality (Tag _ i) (Tag _ j) = testEquality i j
+
+data Handler s es a where
+    Handler :: Tag s b -> (b -> Effect es a) -> Handler s es a
+
+class (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
+instance (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
 
 type family BracketType es where
     BracketType (Bracket s ': es) = s
@@ -38,23 +46,35 @@ type family BracketType es where
 -- | Creates a new tag. The function parameter describes the error message that
 -- is shown in the case of an uncaught exception.
 newTag :: EffectBracket s es => (a -> String) -> Effect es (Tag s a)
-newTag toString = fmap (Tag toString) $ mask' $ newToken "Bracket"
+newTag toString = mask' $ Tag toString <$> newToken "Bracket"
 
 -- | Raises an exception of the specified class and value.
 raiseWith :: EffectBracket s es => Tag s b -> b -> Effect es a
-raiseWith t x = mask' $ send $ Raise t x
+raiseWith tag value = mask' $ send $ Raise tag value
 
 -- | Specifies a handler for exceptions of a given class.
-exceptWith :: EffectBracket s es => Tag s b -> (b -> Effect es a) -> Effect es a -> Effect es a
-exceptWith (Tag _ i) f = exceptAll $ \t@(Tag _ j) x ->
-    maybe (raiseWith t x) (\Refl -> f x) (testEquality i j)
+exceptWith :: EffectBracket s es => Tag s b -> Effect es a -> (b -> Effect es a) -> Effect es a
+exceptWith tag effect handler = exceptAny effect [Handler tag handler]
+
+-- | Specifies a number of handlers for exceptions thrown by the given
+-- computation. This is prefered over chained calles to `exceptWith`, i.e.
+--
+-- > exceptWith t2 (exceptWith t1 m h1) h2
+--
+-- because @h2@ could catch exceptions thrown by @h1@.
+exceptAny :: EffectBracket s es => Effect es a -> [Handler s es a] -> Effect es a
+exceptAny effect handlers = effect `exceptAll` \i x ->
+    let try (Handler j f) = (\Refl -> f x) <$> testEquality i j
+        results = mapMaybe try handlers
+        def = raiseWith i x
+    in fromMaybe def (listToMaybe results)
 
 -- | Intercepts all exceptions. Used to implement `exceptWith` and `bracket`.
 -- Not exported. Is it really a good thing to allow catching all exceptions?
 -- The most common use case for catching all exceptions is to do cleanup, which
 -- is what bracket is for.
-exceptAll :: EffectBracket s es => (forall b. Tag s b -> b -> Effect es a) -> Effect es a -> Effect es a
-exceptAll handler = mask' . run . unmask'
+exceptAll :: EffectBracket s es => Effect es a -> (forall b. Tag s b -> b -> Effect es a) -> Effect es a
+exceptAll effect handler = mask' $ run $ unmask' effect
   where
     run =
         handle return
@@ -70,11 +90,9 @@ bracket :: EffectBracket s es
         -> Effect es b
 bracket acquire destroy run = do
     resource <- acquire
-    result <- exceptAll
-        (\e x -> do
-            destroy resource
-            raiseWith e x)
-        (run resource)
+    result <- run resource `exceptAll` \e x -> do
+        destroy resource
+        raiseWith e x
     destroy resource
     return result
 
