@@ -33,9 +33,6 @@ data Tag s a = Tag (a -> String) (Token s a)
 instance TestEquality (Tag s) where
     testEquality (Tag _ i) (Tag _ j) = testEquality i j
 
-data Handler s es a where
-    Handler :: Tag s b -> (b -> Effect es a) -> Handler s es a
-
 class (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
 instance (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
 
@@ -55,6 +52,10 @@ raiseWith tag value = mask' $ send $ Raise tag value
 -- | Specifies a handler for exceptions of a given class.
 exceptWith :: EffectBracket s es => Tag s b -> Effect es a -> (b -> Effect es a) -> Effect es a
 exceptWith tag effect handler = exceptAny effect [Handler tag handler]
+
+-- | A handler for an exception. Use with `exceptAny`.
+data Handler s es a where
+    Handler :: Tag s b -> (b -> Effect es a) -> Handler s es a
 
 -- | Specifies a number of handlers for exceptions thrown by the given
 -- computation. This is prefered over chained calles to `exceptWith`, i.e.
