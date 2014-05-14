@@ -8,7 +8,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Union (
-    EffectUnion, Union, decompress, compress
+    EffectUnion, Union, decompress, compress,
+    KnownList, type (++)
 ) where
 
 import Control.Monad.Effect

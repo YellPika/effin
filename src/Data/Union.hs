@@ -25,6 +25,9 @@ module Data.Union (
 import Data.Proxy (Proxy (..))
 import Unsafe.Coerce (unsafeCoerce)
 
+-- | Represents a union of the list of type constructors in @es@ parameterized
+-- by @a@. As an effect, it represents the union of each type constructor's
+-- corresponding effect.
 data Union es a where
     Union :: Functor e => Index e es -> e a -> Union es a
 
@@ -78,8 +81,12 @@ withUnion f (Union i x) = withIndex (f x) (\Proxy -> i)
 absurdUnion :: Union '[] a -> b
 absurdUnion _ = error "absurdUnion"
 
+-- | A constraint that requires that the type constructor @t :: * -> *@ is a
+-- member of the list of types @ts :: [* -> *]@.
 class (Functor e, Member' e es (IndexOf e es)) => Member e es where
     index :: Index e es
+
+    -- Default definition hides "Minimal complete definition" section.
     index = undefined
 
 instance (Functor e, Member' e es (IndexOf e es)) => Member e es where
@@ -109,6 +116,7 @@ type family IndexOf (e :: * -> *) es where
 
 newtype Size (es :: [* -> *]) = Size Integer
 
+-- | A 'known list' is a type level list who's size is known at compile time.
 class KnownList es where
     size :: Size es
 
@@ -118,6 +126,7 @@ instance KnownList '[] where
 instance KnownList es => KnownList (e ': es) where
     size = let Size n = size :: Size es in Size (n + 1)
 
+-- | Type level list append function.
 type family es ++ fs :: [* -> *] where
     '[] ++ fs = fs
     (e ': es) ++ fs = e ': (es ++ fs)
