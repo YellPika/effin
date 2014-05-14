@@ -22,6 +22,7 @@ module Data.Union (
     KnownList, type (++)
 ) where
 
+import Control.Arrow (left)
 import Data.Proxy (Proxy (..))
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -50,24 +51,24 @@ project (Union (Index i) x)
   where
     Index j = index :: Index e es
 
-split :: forall a es fs. KnownList es => Union (es ++ fs) a -> Either (Union fs a) (Union es a)
+split :: forall a es fs. KnownList es => Union (es ++ fs) a -> Either (Union es a) (Union fs a)
 split (Union (Index i) x)
-    | i < n = Right $ Union (Index i) x
-    | otherwise = Left $ Union (Index (i - n)) x
+    | i < n = Left $ Union (Index i) x
+    | otherwise = Right $ Union (Index (i - n)) x
   where
     Size n = size :: Size es
 
-combine :: forall a es fs. KnownList es => Either (Union fs a) (Union es a) -> Union (es ++ fs) a
-combine (Right (Union (Index i) x)) = Union (Index i) x
-combine (Left (Union (Index i) x)) = Union (Index (i + n)) x
+combine :: forall a es fs. KnownList es => Either (Union es a) (Union fs a) -> Union (es ++ fs) a
+combine (Left (Union (Index i) x)) = Union (Index i) x
+combine (Right (Union (Index i) x)) = Union (Index (i + n)) x
   where
     Size n = size :: Size es
 
-extend :: Functor e => Either (Union es a) (e a) -> Union (e ': es) a
-extend = combine . fmap wrap
+extend :: Functor e => Either (e a) (Union es a) -> Union (e ': es) a
+extend = combine . left wrap
 
-reduce :: Union (e ': es) a -> Either (Union es a) (e a)
-reduce = fmap unwrap . split
+reduce :: Union (e ': es) a -> Either (e a) (Union es a)
+reduce = left unwrap . split
 
 flatten :: KnownList es => Union (Union es ': fs) a -> Union (es ++ fs) a
 flatten = combine . reduce

@@ -106,7 +106,7 @@ handle point bind (Effect f) = f point bind
 -- an effect value parameterized by the output type (i.e. the return type of
 -- `handle`).
 eliminate :: (e r -> r) -> EffectHandler es r -> EffectHandler (e ': es) r
-eliminate bind (EffectHandler pass) = EffectHandler (either pass bind . reduce)
+eliminate bind (EffectHandler pass) = EffectHandler (either bind pass . reduce)
 
 -- | Provides a way to handle an effect without eliminating it. The given
 -- function is passed an effect value parameterized by the output type (i.e. the
@@ -118,7 +118,7 @@ intercept bind (EffectHandler pass) = EffectHandler $ \u ->
 -- | Provides a way to add arbitrary effects to the head of the effect list.
 -- Not exported because no effect seems to need it.
 ignore :: Functor e => EffectHandler (e ': es) r -> EffectHandler es r
-ignore (EffectHandler pass) = EffectHandler (pass . extend . Left)
+ignore (EffectHandler pass) = EffectHandler (pass . extend . Right)
 
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.
