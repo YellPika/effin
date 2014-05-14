@@ -35,7 +35,7 @@ instance Functor (Union es) where
     fmap f (Union i x) = Union i (fmap f x)
 
 unwrap :: Union '[e] a -> e a
-unwrap = either absurdUnion id . reduce
+unwrap (Union _ x) = unsafeCoerce x
 
 wrap :: Functor e => e a -> Union '[e] a
 wrap = inject
