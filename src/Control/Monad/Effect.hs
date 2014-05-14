@@ -1,23 +1,26 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
 
--- | This module provides three things:
+-- | This module provides four things:
 --
 -- 1. An `Effect` monad for representing effectful computations,
--- 2. A DSL for effect handling that lets you cleanly handle an arbitrary number of effects, and
--- 3. A type-level list membership constraint.
+-- 2. A DSL for effect handling that lets you cleanly handle an arbitrary number of effects,
+-- 3. Combinators for encapsulating effects, and
+-- 4. A type-level list membership constraint.
 module Control.Monad.Effect (
     -- * The Effect Monad
-    Effect,
-    runEffect, send, sendEffect,
+    Effect, runEffect,
+    send, sendEffect,
 
     -- * Effect Handlers
     -- | The following types and functions form a small DSL that allows users to
     -- specify how to handle effects. A handler can be formed by a call to
-    -- `handle`, followed by a chain of calls to `eliminate`, `intercept`, and
-    -- ended by either a `defaultRelay`, `emptyRelay`, or a call to `relay`.
+    -- `handle`, followed by a chain of calls to `eliminate` and `intercept`,
+    -- and ended by either a `defaultRelay`, `emptyRelay`, or a call to `relay`.
     --
     -- For example, a possible handler for the state effect would be:
     --
@@ -37,8 +40,11 @@ module Control.Monad.Effect (
     -- while `eliminate`, `intercept`, and `relay`, let you specify the bind
     -- function.
     Handler, handle,
-    eliminate, intercept, ignore,
+    eliminate, intercept,
     relay, defaultRelay, emptyRelay,
+
+    -- * Effect Encapsulation
+    mask, unmask, translate,
 
     -- * Membership
     Member
@@ -56,7 +62,7 @@ import Control.Monad (join)
 -- >     Done :: a -> Effect es a
 -- >     Side :: `Union` es (Effect es a) -> Effect es a
 newtype Effect es a = Effect {
-    unEffect :: forall r. (a -> r) -> (Union es r -> r) -> r
+    unEffect :: forall r. (a -> r) -> Handler es r -> r
 } deriving Functor
 
 instance Applicative (Effect es) where
@@ -66,25 +72,25 @@ instance Applicative (Effect es) where
 
 instance Monad (Effect es) where
     return = pure
-    Effect x >>= f = Effect $ \p b ->
-        x (\x' -> unEffect (f x') p b) b
+    Effect f >>= g = Effect $ \p b ->
+        f (\x -> unEffect (g x) p b) b
 
 -- | Converts an computation that produces no effects into a regular value.
 runEffect :: Effect '[] a -> a
-runEffect (Effect f) = f id absurdUnion
+runEffect (Effect f) = f id undefined
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
-send :: Member e es => e a -> Effect es a
-send x = Effect $ \point bind -> bind $ inject $ point <$> x
+send :: (Functor e, Member e es) => e a -> Effect es a
+send x = Effect $ \point (Handler bind) -> bind $ inject $ point <$> x
 
 -- | Executes an effect of type @e@ that produces a return value of type @a@.
-sendEffect :: Member e es => e (Effect es a) -> Effect es a
+sendEffect :: (Functor e, Member e es) => e (Effect es a) -> Effect es a
 sendEffect = join . send
 
 -- | A handler for an effectful computation.
 -- Combined with 'handle', allows one to convert a computation
 -- parameterized by the effect list @es@ to a value of type @a@.
-newtype Handler es a = Handler (Union es a -> a)
+newtype Handler es r = Handler (Union es r -> r)
 
 -- | @handle p h@ transforms an effect into a value of type @b@.
 --
@@ -93,25 +99,26 @@ newtype Handler es a = Handler (Union es a -> a)
 -- prop> handle p h (return x) = p x
 --
 -- @h@ specifies how to handle effects.
-handle :: (a -> b) -> Handler es b -> Effect es a -> b
-handle point (Handler bind) (Effect f) = f point bind
+handle :: (a -> r) -> Handler es r -> Effect es a -> r
+handle point bind (Effect f) = f point bind
 
 -- | Provides a way to completely handle an effect. The given function is passed
 -- an effect value parameterized by the output type (i.e. the return type of
 -- `handle`).
-eliminate :: (e b -> b) -> Handler es b -> Handler (e ': es) b
+eliminate :: (e r -> r) -> Handler es r -> Handler (e ': es) r
 eliminate bind (Handler pass) = Handler (either pass bind . reduce)
 
 -- | Provides a way to handle an effect without eliminating it. The given
 -- function is passed an effect value parameterized by the output type (i.e. the
 -- return type of `handle`).
-intercept :: Member e es => (e b -> b) -> Handler es b -> Handler es b
+intercept :: Member e es => (e r -> r) -> Handler es r -> Handler es r
 intercept bind (Handler pass) = Handler $ \u ->
     maybe (pass u) bind (project u)
 
 -- | Provides a way to add arbitrary effects to the head of the effect list.
-ignore :: Handler (e ': es) a -> Handler es a
-ignore (Handler bind) = Handler (bind . expand)
+-- Not exported because no effect seems to need it.
+ignore :: Functor e => Handler (e ': es) r -> Handler es r
+ignore (Handler pass) = Handler (pass . extend . Left)
 
 -- | Computes a basis handler. Provides a way to pass on effects of unknown
 -- types. In most cases, `defaultRelay` is sufficient.
@@ -130,3 +137,28 @@ defaultRelay = relay sendEffect
 -- produce any value.
 emptyRelay :: Handler '[] a
 emptyRelay = Handler absurdUnion
+
+-- | Hides an effect. All effects of type @e@ are translated
+-- to effects of type @f@, and @e@ is erased from the effect list.
+mask :: Member f es => (forall r. e r -> f r) -> Effect (e ': es) a -> Effect es a
+mask f =
+    handle return
+    $ eliminate (sendEffect . f)
+    $ defaultRelay
+
+-- | Reveals an effect. All effects of type @f@ are translated
+-- to effects of type @e@, and @e@ is added to the effect list.
+unmask :: (Functor e, Member f es) => (forall r. f r -> e r) -> Effect es a -> Effect (e ': es) a
+unmask f =
+    handle return
+    $ intercept (sendEffect . f)
+    $ ignore
+    $ defaultRelay
+
+-- | Translates an effect of one type to another.
+translate :: Functor f => (forall r. e r -> f r) -> Effect (e ': es) a -> Effect (f ': es) a
+translate f =
+    handle return
+    $ eliminate (sendEffect . f)
+    $ ignore
+    $ defaultRelay

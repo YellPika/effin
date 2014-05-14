@@ -11,32 +11,15 @@
 
 module Control.Effect.Bracket (
     EffectBracket, Bracket, runBracket,
-    Exn, newExn, raiseWith, exceptWith, bracket,
-    AnyExn
+    raiseWith, exceptWith, bracket
 ) where
 
+import Data.Type.Equality ((:~:) (..), TestEquality (..))
+import Control.Effect.Union
+import Control.Effect.Witness
 import Control.Monad.Effect
-import Unsafe.Coerce (unsafeCoerce)
 
-data Exn s a = Exn (a -> String) Integer
-
-castExn :: Exn s a -> Exn s b -> a -> Maybe b
-castExn (Exn _ i) (Exn _ j) x | i == j = Just (unsafeCoerce x)
-castExn _ _ _ = Nothing
-
-data AnyExn where
-    AnyExn :: Exn s a -> a -> AnyExn
-
-instance Show AnyExn where
-    show (AnyExn (Exn f _) x) = f x
-
-data Bracket s a where
-    Raise :: Exn s b -> b -> Bracket s a
-    NewExn :: (b -> String) -> (Exn s b -> a) -> Bracket s a
-
-instance Functor (Bracket s) where
-    fmap _ (Raise e x) = Raise e x
-    fmap f (NewExn toString g) = NewExn toString (f . g)
+newtype Bracket s a = Bracket { unBracket :: Union '[Raise s, Witness s] a }
 
 class (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
 instance (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
@@ -45,21 +28,15 @@ type family BracketType es where
     BracketType (Bracket s ': es) = s
     BracketType (e ': es) = BracketType es
 
-raiseWith :: EffectBracket s es => Exn s a -> a -> Effect es b
-raiseWith e x = send (Raise e x)
+raiseWith :: EffectBracket s es => Token s b -> b -> Effect es a
+raiseWith t x = mask' $ send $ Raise t x
 
-exceptWith :: EffectBracket s es => Exn s b -> (b -> Effect es a) -> Effect es a -> Effect es a
+exceptWith :: EffectBracket s es => Token s b -> (b -> Effect es a) -> Effect es a -> Effect es a
 exceptWith i f = exceptAll $ \j x ->
-    maybe (raiseWith j x) f (castExn j i x)
+    maybe (raiseWith j x) (\Refl -> f x) (testEquality i j)
 
-exceptAll :: EffectBracket s es => (forall b. Exn s b -> b -> Effect es a) -> Effect es a -> Effect es a
-exceptAll f =
-    handle return
-    $ intercept bind
-    $ defaultRelay
-  where
-    bind (Raise e x) = f e x
-    bind exn = sendEffect exn
+exceptAll :: EffectBracket s es => (forall b. Token s b -> b -> Effect es a) -> Effect es a -> Effect es a
+exceptAll f = mask' . exceptAll' (\t v -> unmask' (f t v)) . unmask'
 
 bracket :: EffectBracket s es => Effect es a -> (a -> Effect es ()) -> (a -> Effect es b) -> Effect es b
 bracket acquire destroy run = do
@@ -72,15 +49,32 @@ bracket acquire destroy run = do
     destroy resource
     return result
 
-newExn :: EffectBracket s es => (a -> String) -> Effect es (Exn s a)
-newExn toString = send $ NewExn toString id
+runBracket :: (forall s. Effect (Bracket s ': es) a) -> Effect es (Either AnyToken a)
+runBracket effect = runWitness $ runRaise $ decompress $ translate unBracket effect
 
-runBracket :: (forall s. Effect (Bracket s ': es) a) -> Effect es (Either AnyExn a)
-runBracket effect =
-    ( handle (\x _ -> return $ Right x)
-    $ eliminate bind
-    $ relay (\x s -> sendEffect $ fmap ($ s) x)
-    ) effect (0 :: Integer)
-  where
-    bind (Raise e x) _ = return . Left $ AnyExn e x
-    bind (NewExn toString f) s = f (Exn toString s) (s + 1)
+mask' :: EffectBracket s es => Effect (Raise s ': Witness s ': es) a -> Effect es a
+mask' = mask Bracket . compress
+
+unmask' :: EffectBracket s es => Effect es a -> Effect (Raise s ': Witness s ': es) a
+unmask' = decompress . unmask unBracket
+
+data AnyToken where
+    AnyToken :: Token s b -> b -> AnyToken
+
+data Raise s a where
+    Raise :: Token s b -> b -> Raise s a
+
+instance Functor (Raise s) where
+    fmap _ (Raise n x) = Raise n x
+
+exceptAll' :: Member (Raise s) es => (forall b. Token s b -> b -> Effect es a) -> Effect es a -> Effect es a
+exceptAll' handler =
+    handle return
+    $ intercept (\(Raise t x) -> handler t x)
+    $ defaultRelay
+
+runRaise :: Effect (Raise s ': es) a -> Effect es (Either AnyToken a)
+runRaise =
+    handle (return . Right)
+    $ eliminate (\(Raise n x) -> return $ Left $ AnyToken n x)
+    $ defaultRelay

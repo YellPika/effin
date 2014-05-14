@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -10,11 +11,11 @@
 
 module Control.Effect.Witness (
     EffectWitness, Witness, runWitness,
-    Token, newToken, tryCast
+    Token, newToken
 ) where
 
 import Control.Monad.Effect
-import Data.Type.Equality ((:~:) (..))
+import Data.Type.Equality ((:~:) (..), TestEquality (..))
 import Data.Unique (Unique, newUnique)
 import System.IO.Unsafe (unsafePerformIO)
 import Unsafe.Coerce (unsafeCoerce)
@@ -24,8 +25,16 @@ data Token s a = Token String Unique
 instance Show (Token s a) where
     show (Token name _) = name
 
+instance TestEquality (Token s) where
+    testEquality (Token _ i) (Token _ j)
+        | i == j = Just unsafeRefl
+        | otherwise = Nothing
+
 data Witness s a where
     Witness :: String -> (Token s b -> a) -> Witness s a
+
+instance Functor (Witness s) where
+    fmap f (Witness name g) = Witness name (f . g)
 
 class (Member (Witness s) es, s ~ WitnessType es) => EffectWitness s es
 instance (Member (Witness s) es, s ~ WitnessType es) => EffectWitness s es
@@ -36,11 +45,6 @@ type family WitnessType es where
 
 unsafeRefl :: a :~: b
 unsafeRefl = unsafeCoerce Refl
-
-tryCast :: Token s a -> Token s b -> Maybe (a :~: b)
-tryCast (Token _ i) (Token _ j)
-    | i == j = Just unsafeRefl
-    | otherwise = Nothing
 
 newToken :: EffectWitness s es => String -> Effect es (Token s a)
 newToken name = send (Witness name id)

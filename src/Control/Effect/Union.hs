@@ -1,14 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Control.Effect.Union (
-    EffectUnion, Union, runUnion, nest,
-    KnownList, type (++),
+    EffectUnion, Union, decompress, compress
 ) where
 
 import Control.Monad.Effect
@@ -21,17 +22,13 @@ type family UnionType fs where
     UnionType (Union es ': fs) = es
     UnionType (f ': fs) = UnionType fs
 
--- | Nests an effect with another.
-nest :: EffectUnion es fs => Effect es a -> Effect fs a
-nest =
-    handle return
-    $ relayUnion sendEffect
+decompress :: KnownList es => Effect (Union es ': fs) a -> Effect (es ++ fs) a
+decompress = transform flatten
 
--- | Flattens a nested list of effects.
-runUnion :: KnownList es => Effect (Union es ': fs) a -> Effect (es ++ fs) a
-runUnion =
-    handle return
-    $ relayUnion (withUnion sendEffect . flatten)
+compress :: KnownList es => Effect (es ++ fs) a -> Effect (Union es ': fs) a
+compress = transform unflatten
 
-relayUnion :: (Union es b -> b) -> Handler es b
-relayUnion f = relay (f . inject)
+transform :: (forall r. Union es r -> Union fs r) -> Effect es a -> Effect fs a
+transform f =
+    handle return
+    $ relay (withUnion sendEffect . f . inject)

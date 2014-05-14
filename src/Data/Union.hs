@@ -12,8 +12,11 @@
 
 module Data.Union (
     Union, Member,
+    unwrap, wrap,
     inject, project,
-    reduce, flatten, expand,
+    split, combine,
+    reduce, extend,
+    flatten, unflatten,
     withUnion, absurdUnion,
 
     KnownList, type (++)
@@ -22,16 +25,17 @@ module Data.Union (
 import Data.Proxy (Proxy (..))
 import Unsafe.Coerce (unsafeCoerce)
 
--- Union -----------------------------------------------------------------------
-
--- | Represents a union of the list of type constructors in @es@ parameterized
--- by @a@. As an effect, it represents the union of each type constructor's
--- corresponding effect.
 data Union es a where
     Union :: Functor e => Index e es -> e a -> Union es a
 
 instance Functor (Union es) where
     fmap f (Union i x) = Union i (fmap f x)
+
+unwrap :: Union '[e] a -> e a
+unwrap = either absurdUnion id . reduce
+
+wrap :: Functor e => e a -> Union '[e] a
+wrap = inject
 
 inject :: Member e es => e a -> Union es a
 inject = Union index
@@ -43,19 +47,30 @@ project (Union (Index i) x)
   where
     Index j = index :: Index e es
 
+split :: forall a es fs. KnownList es => Union (es ++ fs) a -> Either (Union fs a) (Union es a)
+split (Union (Index i) x)
+    | i < n = Right $ Union (Index i) x
+    | otherwise = Left $ Union (Index (i - n)) x
+  where
+    Size n = size :: Size es
+
+combine :: forall a es fs. KnownList es => Either (Union fs a) (Union es a) -> Union (es ++ fs) a
+combine (Right (Union (Index i) x)) = Union (Index i) x
+combine (Left (Union (Index i) x)) = Union (Index (i + n)) x
+  where
+    Size n = size :: Size es
+
+extend :: Functor e => Either (Union es a) (e a) -> Union (e ': es) a
+extend = combine . fmap wrap
+
 reduce :: Union (e ': es) a -> Either (Union es a) (e a)
-reduce (Union (Index 0) x) = Right (unsafeCoerce x)
-reduce (Union (Index n) x) = Left (Union (Index (n - 1)) x)
+reduce = fmap unwrap . split
 
 flatten :: KnownList es => Union (Union es ': fs) a -> Union (es ++ fs) a
-flatten = flatten' size . reduce
-  where
-    flatten' :: Size es -> Either (Union fs a) (Union es a) -> Union (es ++ fs) a
-    flatten' _ (Right (Union (Index i) x)) = Union (Index i) x
-    flatten' (Size n) (Left (Union (Index i) x)) = Union (Index (n + i)) x
+flatten = combine . reduce
 
-expand :: Union es a -> Union (e ': es) a
-expand (Union (Index i) x) = Union (Index (i + 1)) x
+unflatten :: KnownList es => Union (es ++ fs) a -> Union (Union es ': fs) a
+unflatten = extend . split
 
 withUnion :: (forall e. Member e es => e a -> r) -> Union es a -> r
 withUnion f (Union i x) = withIndex (f x) (\Proxy -> i)
@@ -63,50 +78,37 @@ withUnion f (Union i x) = withIndex (f x) (\Proxy -> i)
 absurdUnion :: Union '[] a -> b
 absurdUnion _ = error "absurdUnion"
 
--- Membership ------------------------------------------------------------------
-
--- | A constraint that requires that the type constructor @t :: * -> *@ is a
--- member of the list of types @ts :: [* -> *]@.
-class (Functor t, Member' t ts (IndexOf t ts)) => Member t ts where
-    index :: Index t ts
-
-    -- Default definition hides "Minimal complete definition" section.
+class (Functor e, Member' e es (IndexOf e es)) => Member e es where
+    index :: Index e es
     index = undefined
 
-instance (Functor t, Member' t ts (IndexOf t ts)) => Member t ts where
-    index = index' (Proxy :: Proxy (IndexOf t ts))
+instance (Functor e, Member' e es (IndexOf e es)) => Member e es where
+    index = index' (Proxy :: Proxy (IndexOf e es))
 
 class Member' e es (n :: N) where
     index' :: Proxy n -> Index e es
 
 instance Member' e (e ': es) Z where
-    index' _ = Index 0
+    index' Proxy = Index 0
 
 instance (Member' e es n, IndexOf e (f ': es) ~ S n) => Member' e (f ': es) (S n) where
-    index' p = incr (index' (decr p))
+    index' Proxy = Index (i + 1)
       where
-        incr :: Index e es -> Index e (f ': es)
-        incr (Index i) = Index (i + 1)
-
-        decr :: Proxy (S n) -> Proxy n
-        decr Proxy = Proxy
+        Index i = index' (Proxy :: Proxy n) :: Index e es
 
 newtype Index (e :: * -> *) (es :: [* -> *]) = Index Integer
 
 withIndex :: (Member' e es (IndexOf e es) => r) -> (Proxy (IndexOf e es) -> Index e es) -> r
 withIndex = unsafeCoerce
 
--- Type Level Indices ----------------------------------------------------------
 data N = Z | S N
 
-type family IndexOf (t :: * -> *) ts where
-    IndexOf t (t ': ts) = Z
-    IndexOf t (u ': ts) = S (IndexOf t ts)
+type family IndexOf (e :: * -> *) es where
+    IndexOf e (e ': es) = Z
+    IndexOf e (f ': es) = S (IndexOf e es)
 
--- Type Level Lists ------------------------------------------------------------
 newtype Size (es :: [* -> *]) = Size Integer
 
--- | A 'known list' is a type level list who's size is known at compile time.
 class KnownList es where
     size :: Size es
 
@@ -114,12 +116,8 @@ instance KnownList '[] where
     size = Size 0
 
 instance KnownList es => KnownList (e ': es) where
-    size = incr size
-      where
-        incr :: Size es -> Size (e ': es)
-        incr (Size n) = Size (n + 1)
+    size = let Size n = size :: Size es in Size (n + 1)
 
--- | Type level list append function.
 type family es ++ fs :: [* -> *] where
     '[] ++ fs = fs
     (e ': es) ++ fs = e ': (es ++ fs)
