@@ -97,7 +97,7 @@ bracket acquire destroy run = do
     return result
 
 -- | A specialized version of `bracket` which
--- does not require an 'acuiqre' operation.
+-- does not require an 'acquire' operation.
 finally :: EffectBracket s es => Effect es a -> Effect es () -> Effect es a
 finally effect finalizer = bracket
     (return ())
