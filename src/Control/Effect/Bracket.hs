@@ -22,11 +22,12 @@ import Control.Effect.Witness
 import Control.Monad.Effect
 
 newtype Bracket s a = Bracket { unBracket :: Union '[Raise s, Witness s] a }
-
-newtype Tag s a = Tag (Token s a)
+  deriving Functor
 
 class (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
 instance (Member (Bracket s) es, s ~ BracketType es) => EffectBracket s es
+
+newtype Tag s a = Tag (Token s a)
 
 type family BracketType es where
     BracketType (Bracket s ': es) = s
