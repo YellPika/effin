@@ -11,7 +11,8 @@
 
 module Control.Effect.Bracket (
     EffectBracket, Bracket, runBracket,
-    Tag, newTag, raiseWith, exceptWith, exceptAny, bracket, finally
+    Tag, newTag, raiseWith, exceptWith,
+    Handler, exceptAny, bracket, finally
 ) where
 
 import Control.Applicative ((<$>))
