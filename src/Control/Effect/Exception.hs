@@ -13,12 +13,11 @@
 #endif
 
 module Control.Effect.Exception (
-    EffectException, Exception, runException, runIOException,
-    raise, except, finally
+    EffectException, Exception, runException,
+    raise, except
 ) where
 
-import Control.Exception (SomeException (..), catch, throwIO)
-import Control.Effect.Lift
+import Control.Effect.Bracket
 import Control.Monad.Effect
 
 #ifdef MTL
@@ -50,52 +49,16 @@ raise = send . Raise
 except :: EffectException e es => Effect es a -> (e -> Effect es a) -> Effect es a
 except x f = sendEffect (Catch x f)
 
--- | Ensures that a computation is run after another one completes,
--- regardless of whether an exception was raised. Intended to be
--- used in infix form.
---
--- > do x <- loadSomeResource
--- >    doSomethingWith x `finally` unload x
-finally :: EffectException e es => Effect es a -> Effect es () -> Effect es a
-finally effect finalizer = do
-    result <- effect `except` \e -> do
-        finalizer
-        raise e
-    finalizer
-    return result
-
 -- | Completely handles an exception effect.
-runException :: Effect (Exception e ': es) a -> Effect es (Either e a)
-runException =
-    handle point
-    $ eliminate bind
-    $ defaultRelay
+runException :: (EffectBracket s es, Show e) => Effect (Exception e ': es) a -> Effect es (Either e a)
+runException effect = do
+    tag <- newTag show
+    exceptWith tag (run tag effect) (return . Left)
   where
-    point = return . Right
-
-    bind (Raise e) = return (Left e)
-    bind (Catch x f) = x >>= either f point
-
--- | Completely handle all exceptions in the IO monad. This handler allows
--- exceptions thrown via `throw`/`throwIO` to be caught using `except`.
-runIOException :: EffectLift IO es => Effect (Exception SomeException ': es) a -> Effect es (Either SomeException a)
-runIOException = catchAll . bakeExceptions
-  where
-    -- Catch any remaining exceptions and convert them to Either values.
-    catchAll =
+    run tag =
         handle (return . Right)
-        $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . return . Left))
+        $ eliminate (bind tag)
         $ defaultRelay
 
-    -- Convert calls to raise/except into calls to throwIO and catch.
-    bakeExceptions =
-        handle return
-        $ eliminate bind
-        $ defaultRelay
-
-    bind (Raise (SomeException e)) = lift $ throwIO e
-    bind (Catch effect handler) =
-        ( handle return
-        $ intercept (\(Lift m) -> liftEffect $ m `catch` (return . handler))
-        $ defaultRelay
-        ) effect
+    bind tag (Raise e) = raiseWith tag e
+    bind tag (Catch x f) = exceptWith tag x f

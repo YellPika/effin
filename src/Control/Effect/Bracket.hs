@@ -17,7 +17,6 @@ module Control.Effect.Bracket (
 import Control.Applicative ((<$>))
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
-import Data.Union
 import Control.Effect.Union
 import Control.Effect.Witness
 import Control.Monad.Effect
@@ -66,8 +65,7 @@ exceptAny :: EffectBracket s es => Effect es a -> [Handler s es a] -> Effect es 
 exceptAny effect handlers = effect `exceptAll` \i x ->
     let try (Handler j f) = (\Refl -> f x) <$> testEquality i j
         results = mapMaybe try handlers
-        def = raiseWith i x
-    in fromMaybe def (listToMaybe results)
+    in fromMaybe (raiseWith i x) (listToMaybe results)
 
 -- | Intercepts all exceptions. Used to implement `exceptWith` and `bracket`.
 -- Not exported. Is it really a good thing to allow catching all exceptions?
@@ -111,8 +109,10 @@ runBracket effect = runWitness $ runRaise $ decompress $ translate unBracket eff
   where
     runRaise =
         handle return
-        $ eliminate (\(Raise (Tag f _) x) -> error (f x))
+        $ eliminate bind
         $ defaultRelay
+
+    bind (Raise (Tag f _) x) = error (f x)
 
 -- A couple helper functions for getting in and out of the base effects.
 mask' :: EffectBracket s es => Effect (Raise s ': Witness s ': es) a -> Effect es a
