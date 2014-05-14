@@ -22,9 +22,11 @@ type family UnionType fs where
     UnionType (Union es ': fs) = es
     UnionType (f ': fs) = UnionType fs
 
+-- | Distributes the sub-effects of a `Union` effect across a computation.
 decompress :: KnownList es => Effect (Union es ': fs) a -> Effect (es ++ fs) a
 decompress = transform flatten
 
+-- | Collects some effects in a computation into a `Union` effect.
 compress :: KnownList es => Effect (es ++ fs) a -> Effect (Union es ': fs) a
 compress = transform unflatten
 
