@@ -11,10 +11,12 @@
 
 module Control.Effect.Bracket (
     EffectBracket, Bracket, runBracket,
-    raiseWith, exceptWith, bracket
+    raiseWith, exceptWith, bracket,
+    AnyToken
 ) where
 
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
+import Data.Union
 import Control.Effect.Union
 import Control.Effect.Witness
 import Control.Monad.Effect
@@ -36,7 +38,12 @@ exceptWith i f = exceptAll $ \j x ->
     maybe (raiseWith j x) (\Refl -> f x) (testEquality i j)
 
 exceptAll :: EffectBracket s es => (forall b. Token s b -> b -> Effect es a) -> Effect es a -> Effect es a
-exceptAll f = mask' . exceptAll' (\t v -> unmask' (f t v)) . unmask'
+exceptAll handler = mask' . run . unmask'
+  where
+    run =
+        handle return
+        $ intercept (\(Raise t x) -> unmask' (handler t x))
+        $ defaultRelay
 
 bracket :: EffectBracket s es => Effect es a -> (a -> Effect es ()) -> (a -> Effect es b) -> Effect es b
 bracket acquire destroy run = do
@@ -51,6 +58,11 @@ bracket acquire destroy run = do
 
 runBracket :: (forall s. Effect (Bracket s ': es) a) -> Effect es (Either AnyToken a)
 runBracket effect = runWitness $ runRaise $ decompress $ translate unBracket effect
+  where
+    runRaise =
+        handle (return . Right)
+        $ eliminate (\(Raise n x) -> return $ Left $ AnyToken n x)
+        $ defaultRelay
 
 mask' :: EffectBracket s es => Effect (Raise s ': Witness s ': es) a -> Effect es a
 mask' = mask Bracket . compress
@@ -66,15 +78,3 @@ data Raise s a where
 
 instance Functor (Raise s) where
     fmap _ (Raise n x) = Raise n x
-
-exceptAll' :: Member (Raise s) es => (forall b. Token s b -> b -> Effect es a) -> Effect es a -> Effect es a
-exceptAll' handler =
-    handle return
-    $ intercept (\(Raise t x) -> handler t x)
-    $ defaultRelay
-
-runRaise :: Effect (Raise s ': es) a -> Effect es (Either AnyToken a)
-runRaise =
-    handle (return . Right)
-    $ eliminate (\(Raise n x) -> return $ Left $ AnyToken n x)
-    $ defaultRelay
