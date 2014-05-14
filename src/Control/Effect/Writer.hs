@@ -14,13 +14,15 @@
 
 module Control.Effect.Writer (
     EffectWriter, Writer, runWriter,
-    tell, listen, listens, pass, censor
+    tell, listen, listens, pass, censor,
+    stateWriter
 ) where
 
 import Control.Monad.Effect
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
 import Data.Monoid (Monoid (..))
+import Control.Effect.State
 
 #ifdef MTL
 import qualified Control.Monad.Writer.Class as W
@@ -77,6 +79,13 @@ censor :: EffectWriter w es => (w -> w) -> Effect es a -> Effect es a
 censor f effect = pass $ do
     a <- effect
     return (a, f)
+
+-- | Executes a writer computation which sends its output to a state effect.
+stateWriter :: (Monoid s, EffectState s es) => Effect (Writer s ': es) a -> Effect es a
+stateWriter =
+    handle return
+    $ eliminate (\(Writer l x) -> modify (mappend l) >> x)
+    $ defaultRelay
 
 -- | Completely handles a writer effect. The writer value must be a `Monoid`.
 -- `mempty` is used as an initial value, and `mappend` is used to combine values.

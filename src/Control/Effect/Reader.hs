@@ -14,9 +14,11 @@
 
 module Control.Effect.Reader (
 	EffectReader, Reader, runReader,
-    ask, asks, local
+    ask, asks, local,
+    stateReader
 ) where
 
+import Control.Effect.State
 import Control.Monad.Effect
 
 #ifdef MTL
@@ -57,6 +59,14 @@ local f effect = do
         handle return
         $ intercept (bind env)
         $ defaultRelay
+
+-- | Executes a reader computation which obtains
+-- its environment value from a state effect.
+stateReader :: EffectState s es => Effect (Reader s ': es) a -> Effect es a
+stateReader =
+    handle return
+    $ eliminate (\(Reader f) -> get >>= f)
+    $ defaultRelay
 
 -- | Completely handles a `Reader` effect by providing an
 -- environment value to be used throughout the computation.
