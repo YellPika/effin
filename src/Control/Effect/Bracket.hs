@@ -45,7 +45,7 @@ type family BracketType es where
 -- | Creates a new tag. The function parameter describes the error message that
 -- is shown in the case of an uncaught exception.
 newTag :: EffectBracket s es => (a -> String) -> Effect es (Tag s a)
-newTag toString = mask' $ Tag toString <$> newToken "Bracket"
+newTag toString = mask' $ Tag toString <$> newToken
 
 -- | Raises an exception of the specified class and value.
 raiseWith :: EffectBracket s es => Tag s b -> b -> Effect es a
