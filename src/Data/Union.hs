@@ -4,13 +4,13 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Data.Union (
-    Union,
+    Union, absurdUnion,
     wrap, unwrap,
     inject, project,
     split, combine,
     reduce, expand,
     flatten, unflatten,
-    remove, absurdUnion
+    insert, remove
 ) where
 
 import Data.Type.List
@@ -19,16 +19,22 @@ import Data.Maybe (fromJust)
 import Data.Type.Equality ((:~:) (..), testEquality)
 import Data.Proxy (Proxy (..))
 
+-- | Represents a union of the list of type constructors in @l@ parameterized
+-- by @a@. As an effect, it represents the union of each type constructor's
+-- corresponding effect.
 data Union l a where
     Union :: Functor f => Index l f -> f a -> Union l a
 
 instance Functor (Union l) where
     fmap f (Union i x) = Union i (fmap f x)
 
-wrap :: Functor f => f a -> Union (f +: Nil) a
+absurdUnion :: Union Nil a -> b
+absurdUnion (Union i _) = (case i of)
+
+wrap :: Functor f => f a -> Union (f :+ Nil) a
 wrap = inject
 
-unwrap :: Union (f +: Nil) a -> f a
+unwrap :: Union (f :+ Nil) a -> f a
 unwrap = fromJust . project
 
 inject :: (Functor f, Member f l) => f a -> Union l a
@@ -53,23 +59,24 @@ combine' :: Size l -> proxy m -> Either (Union l a) (Union m a) -> Union (l ++ m
 combine' _ p (Left (Union i x)) = Union (append i p) x
 combine' n _ (Right (Union i x)) = Union (prepend n i) x
 
-reduce :: Union (f +: l) a -> Either (f a) (Union l a)
+reduce :: Union (f :+ l) a -> Either (f a) (Union l a)
 reduce = left unwrap . split
 
-expand :: Functor f => Either (f a) (Union l a) -> Union (f +: l) a
+expand :: Functor f => Either (f a) (Union l a) -> Union (f :+ l) a
 expand = combine . left wrap
 
-flatten :: Inclusive l => Union (Union l +: m) a -> Union (l ++ m) a
+flatten :: Inclusive l => Union (Union l :+ m) a -> Union (l ++ m) a
 flatten = combine . reduce
 
-unflatten :: KnownList l => Union (l ++ m) a -> Union (Union l +: m) a
+unflatten :: KnownList l => Union (l ++ m) a -> Union (Union l :+ m) a
 unflatten = expand . split
 
-remove :: Member f l => Union l a -> Either (f a) (Union (f -: l) a)
+remove :: Member f l => Union l a -> Either (f a) (Union (f :- l) a)
 remove u@(Union i x) =
     case project u of
         Just x' -> Left x'
         Nothing -> Right (Union (delete i) x)
 
-absurdUnion :: Union Nil a -> b
-absurdUnion (Union i _) = (case i of)
+insert :: (Functor f, Member f l) => Either (f a) (Union (f :- l) a) -> Union l a
+insert (Left x) = inject x
+insert (Right (Union i x)) = Union (undelete i) x

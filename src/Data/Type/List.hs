@@ -10,67 +10,81 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Data.Type.List (
-    List, Nil, type (+:), type (-:), type (++),
+    List (..), type (++),
+    Is, InstanceOf,
     Inclusive,
     Size, KnownList (..),
     Index, Member (..),
-    delete, prepend, append, decrease
+    delete, undelete, prepend, append, decrease
 ) where
 
 import Control.Arrow (left)
 import Data.Proxy (Proxy (..))
+import Data.Type.Bool (If)
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
 
-infixr 5 +:, -:
-
--- | An empty list.
-type Nil = (Nil' :: List (* -> *))
+infixr 5 :+, :-
 
 -- | Type level list with explicit removals.
-data List a = Insert a (List a) | Delete a (List a) | Nil'
-
--- | Prepends @f@ to @l@.
-type (f :: * -> *) +: l = Insert f l
-
--- | Delete's the first occurence of @f@ in @l@.
-type (f :: * -> *) -: l = Delete f l
+data List a
+    = a :+ List a -- ^ Prepends an element.
+    | a :- List a -- ^ Deletes the first occurence of an element.
+    | Nil           -- ^ An empty list.
 
 -- | Appends two lists.
-type family l ++ m where
+type family l ++ m :: List (* -> *) where
     Nil ++ m = m
-    Insert f l ++ m = Insert f (l ++ m)
-    Delete f l ++ m = Delete f (l ++ m)
+    (f :+ l) ++ m = f :+ (l ++ m)
+    (f :- l) ++ m = f :- (l ++ m)
+
+-- | Returns a boolean value indicating whether @f@ belongs to the group of
+-- effects identified by @name@. This allows `MemberEffect` to infer associated
+-- types for arbitrary effects.
+type family Is name (f :: * -> *) :: Bool
+
+type InstanceOf name l = NthInstanceOf name Z l
+
+type family NthInstanceOf name n l where
+    NthInstanceOf name Z     (f :+ l) = If (Is name f) f (NthInstanceOf name Z l)
+    NthInstanceOf name (S n) (f :+ l) = NthInstanceOf name (If (Is name f) (S n) n) l
+    NthInstanceOf name n     (f :- l) = NthInstanceOf name (If (Is name f) (S n) n) l
 
 -- | Describes `List`s which do not contain deletions.
 class KnownList l => Inclusive l
 instance Inclusive Nil
-instance Inclusive l => Inclusive (f +: l)
+instance Inclusive l => Inclusive (f :+ l)
 
 data Size :: List (* -> *) -> * where
     Zero :: Size Nil
-    SuccI :: Size l -> Size (f +: l)
-    SuccD :: Size l -> Size (f -: l)
+    SuccI :: Size l -> Size (f :+ l)
+    SuccD :: Size l -> Size (f :- l)
 
 -- | Describes a type level list who's size is known at compile time.
 class KnownList l where
     size :: Size l
 
+    -- Prevents the `Minimal Complete Definition` box from showing.
+    size = undefined
+
 instance KnownList Nil where
     size = Zero
 
-instance KnownList l => KnownList (f +: l) where
+instance KnownList l => KnownList (f :+ l) where
     size = SuccI size
 
-instance KnownList l => KnownList (f -: l) where
+instance KnownList l => KnownList (f :- l) where
     size = SuccD size
 
-data Index l f where
-    Head :: Index (f +: l) f
-    TailI :: Index l f -> Index (g +: l) f
-    TailD :: Index l f -> Index (g -: l) f
+data Index :: List (* -> *) -> (* -> *) -> * where
+    Head :: Index (f :+ l) f
+    TailI :: Index l f -> Index (g :+ l) f
+    TailD :: Index l f -> Index (g :- l) f
 
-delete :: Index l f -> Index (g -: l) f
+delete :: Index l f -> Index (g :- l) f
 delete = TailD
+
+undelete :: Index (g :- l) f -> Index l f
+undelete (TailD i) = i
 
 prepend :: Size l -> Index m f -> Index (l ++ m) f
 prepend Zero i = i
@@ -98,6 +112,7 @@ instance TestEquality (Index l) where
 -- | A constraint requiring the membership of @f@ in @l@.
 class MemberAt f l (IndexOf f l) => Member f l where
     index :: Index l f
+    index = undefined
 
 instance MemberAt f l (IndexOf f l) => Member f l where
     index = indexAt (Proxy :: Proxy (IndexOf f l))
@@ -105,22 +120,22 @@ instance MemberAt f l (IndexOf f l) => Member f l where
 class MemberAt f l (n :: N) where
     indexAt :: proxy n -> Index l f
 
-instance MemberAt f (f +: l) Z where
+instance MemberAt f (f :+ l) Z where
     indexAt _ = Head
 
-instance MemberAt f l n => MemberAt f (g +: l) (S n) where
+instance MemberAt f l n => MemberAt f (g :+ l) (S n) where
     indexAt _ = TailI $ indexAt (Proxy :: Proxy n)
 
-instance MemberAt f l n => MemberAt f (g -: l) (S n) where
+instance MemberAt f l n => MemberAt f (g :- l) (S n) where
     indexAt _ = TailD $ indexAt (Proxy :: Proxy n)
 
 type IndexOf f l = NthIndexOf Z f l
 
-type family NthIndexOf n f l where
-    NthIndexOf Z     f (f +: l) = Z
-    NthIndexOf (S n) f (f +: l) = S (NthIndexOf n f l)
-    NthIndexOf n     f (g +: l) = S (NthIndexOf n f l)
-    NthIndexOf n     f (f -: l) = S (NthIndexOf (S n) f l)
-    NthIndexOf n     f (g -: l) = S (NthIndexOf n f l)
+type family NthIndexOf n (f :: * -> *) l where
+    NthIndexOf Z     f (f :+ l) = Z
+    NthIndexOf (S n) f (f :+ l) = S (NthIndexOf n f l)
+    NthIndexOf n     f (g :+ l) = S (NthIndexOf n f l)
+    NthIndexOf n     f (f :- l) = S (NthIndexOf (S n) f l)
+    NthIndexOf n     f (g :- l) = S (NthIndexOf n f l)
 
 data N = Z | S N

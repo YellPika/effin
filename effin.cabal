@@ -13,7 +13,9 @@ cabal-version:       >=1.10
 -- description:
 
 library
-  -- exposed-modules:
+  exposed-modules:
+    Control.Monad.Effect
+
   other-modules:
     Data.Type.List,
     Data.Union
