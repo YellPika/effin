@@ -9,14 +9,13 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Data.Type.List where
---module Data.Type.List (
---    List, Nil, type (+:), type (-:), type (++),
---    Inclusive,
---    Size, KnownList (..),
---    Index, Member (..),
---    delete, prepend, append, decrease
---) where
+module Data.Type.List (
+    List, Nil, type (+:), type (-:), type (++),
+    Inclusive,
+    Size, KnownList (..),
+    Index, Member (..),
+    delete, prepend, append, decrease
+) where
 
 import Control.Arrow (left)
 import Data.Proxy (Proxy (..))
