@@ -74,7 +74,7 @@ class l ~ EffectsOf r => Effectful l r where
 
 instance Effectful l (Effect l a) where
     type EffectsOf (Effect l a) = l
-    relay = join . sendUnion
+    relay u = join $ Effect $ \point bind -> bind $ point <$> u
 
 instance Effectful l r => Effectful l (a -> r) where
     type EffectsOf (a -> r) = EffectsOf r
@@ -89,10 +89,7 @@ sendEffect = relay . inject
 
 -- | Executes an effect of type @f@ that produces a return value of type @a@.
 send :: (Functor f, Member f l) => f a -> Effect l a
-send = sendUnion . inject
-
-sendUnion :: Union l a -> Effect l a
-sendUnion x = Effect $ \point bind -> bind $ point <$> x
+send = sendEffect . fmap return
 
 -- | A handler for an effectful computation. Combined with 'handle', allows one
 -- to convert a computation parameterized by the effect list @l@ to a value of
@@ -161,7 +158,7 @@ unmask f = translate $ \u -> maybe (expand (Right u)) (inject . f) (project u)
 
 -- | Translates the first effect in the effect list into another effect.
 rename :: Functor g => (forall a. f a -> g a) -> EffectHandler r (f :+ l) (g :+ l)
-rename f = EffectHandler $ \pass -> pass . either (inject . f) (expand . Right) . reduce
+rename f = translate (either (inject . f) (expand . Right) . reduce)
 
 -- | Distributes the sub-effects of a `Union` effect across a computation.
 compress :: Inclusive l => EffectHandler r (Union l :+ m) (l ++ m)
