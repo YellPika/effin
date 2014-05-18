@@ -17,7 +17,9 @@ library
     Control.Monad.Effect
 
   other-modules:
+    Data.Index,
     Data.Type.List,
+    Data.Type.Nat
     Data.Union
 
   build-depends: base >= 4.7 && < 4.8

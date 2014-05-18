@@ -4,20 +4,22 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Data.Union (
-    Union, absurdUnion,
+    Union, absurd,
     wrap, unwrap,
     inject, project,
-    split, combine,
-    reduce, expand,
-    flatten, unflatten,
-    insert, remove
+    swap, rotate,
+    push, pop,
+    enable, disable,
+    conceal, reveal,
+    flatten, unflatten
 ) where
 
+import Data.Index (Index, index)
+import qualified Data.Index as Index
+
 import Data.Type.List
-import Control.Arrow (left)
-import Data.Maybe (fromJust)
-import Data.Type.Equality ((:~:) (..), testEquality)
 import Data.Proxy (Proxy (..))
+import Data.Type.Equality ((:~:) (..), apply, castWith, gcastWith, testEquality)
 
 -- | Represents a union of the list of type constructors in @l@ parameterized
 -- by @a@. As an effect, it represents the union of each type constructor's
@@ -28,55 +30,62 @@ data Union l a where
 instance Functor (Union l) where
     fmap f (Union i x) = Union i (fmap f x)
 
-absurdUnion :: Union Nil a -> b
-absurdUnion (Union i _) = (case i of)
+absurd :: Union Nil a -> b
+absurd (Union i _) = Index.absurd i
 
-wrap :: Functor f => f a -> Union (f :+ Nil) a
+wrap :: Functor f => f a -> Union (f :+ l) a
 wrap = inject
 
 unwrap :: Union (f :+ Nil) a -> f a
-unwrap = fromJust . project
+unwrap (Union i x) = gcastWith (Index.trivial i) x
 
 inject :: (Functor f, Member f l) => f a -> Union l a
 inject = Union index
 
 project :: Member f l => Union l a -> Maybe (f a)
-project (Union i x) = project' i index x
+project (Union i x) = fmap (\refl -> castWith (apply refl Refl) x) mRefl
+  where
+    mRefl = testEquality i index
 
-project' :: Index l f -> Index l g -> f a -> Maybe (g a)
-project' i j x = fmap (\Refl -> x) (testEquality i j)
+swap :: Union (f :+ g :+ l) a -> Union (g :+ f :+ l) a
+swap (Union i x) = Union (Index.swap i) x
 
-split :: KnownList l => Union (l ++ m) a -> Either (Union l a) (Union m a)
-split (Union i x) =
-    case decrease i size of
-        Left j -> Left (Union j x)
-        Right j -> Right (Union j x)
+rotate :: Union (f :+ g :+ h :+ l) a -> Union (g :+ h :+ f :+ l) a
+rotate (Union i x) = Union (Index.rotate i) x
 
-combine :: Inclusive l => Either (Union l a) (Union m a) -> Union (l ++ m) a
-combine = combine' size Proxy
+push :: Union l a -> Union (f :+ l) a
+push (Union i x) = Union (Index.push i) x
 
-combine' :: Size l -> proxy m -> Either (Union l a) (Union m a) -> Union (l ++ m) a
-combine' _ p (Left (Union i x)) = Union (append i p) x
-combine' n _ (Right (Union i x)) = Union (prepend n i) x
-
-reduce :: Union (f :+ l) a -> Either (f a) (Union l a)
-reduce = left unwrap . split
-
-expand :: Functor f => Either (f a) (Union l a) -> Union (f :+ l) a
-expand = combine . left wrap
-
-flatten :: Inclusive l => Union (Union l :+ m) a -> Union (l ++ m) a
-flatten = combine . reduce
-
-unflatten :: KnownList l => Union (l ++ m) a -> Union (Union l :+ m) a
-unflatten = expand . split
-
-remove :: Member f l => Union l a -> Either (f a) (Union (f :- l) a)
-remove u@(Union i x) =
+pop :: Union (f :+ l) a -> Either (f a) (Union l a)
+pop u@(Union i x) =
     case project u of
-        Just x' -> Left x'
-        Nothing -> Right (Union (delete i) x)
+        Just r -> Left r
+        Nothing -> Right (Union (Index.pop i) x)
 
-insert :: (Functor f, Member f l) => Either (f a) (Union (f :- l) a) -> Union l a
-insert (Left x) = inject x
-insert (Right (Union i x)) = Union (undelete i) x
+enable :: Union (f :- l) a -> Union l a
+enable (Union i x) = Union (Index.enable i) x
+
+disable :: Member f l => Union l a -> Either (f a) (Union (f :- l) a)
+disable u@(Union i x) =
+    case project u of
+        Just r -> Left r
+        Nothing -> Right (Union (Index.disable i) x)
+
+conceal :: Member f l => Union (f :+ l) a -> Union l a
+conceal (Union i x) = Union (Index.conceal i) x
+
+reveal :: Member f l => Union l a -> Union (f :+ l) a
+reveal (Union i x) = Union (Index.reveal i) x
+
+flatten :: Inclusive l => Union (Union l :+ m) a -> Union (l :++ m) a
+flatten = flatten' Proxy Proxy . pop
+  where
+    flatten' :: KnownLength l => proxy l -> proxy m -> Either (Union l a) (Union m a) -> Union (l :++ m) a
+    flatten' _ p (Left (Union i x)) = Union (Index.append i p) x
+    flatten' p _ (Right (Union i x)) = Union (Index.prepend p i) x
+
+unflatten :: KnownLength l => Union (l :++ m) a -> Union (Union l :+ m) a
+unflatten (Union i x) =
+    case Index.split i of
+        Left j -> Union Index.zero (Union j x)
+        Right j -> Union (Index.push j) x
