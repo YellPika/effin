@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -22,6 +23,12 @@ import Control.Monad (MonadPlus (..), (<=<), join)
 -- | A nondeterminism (backtracking) effect.
 newtype List a = List { unList :: [a] }
   deriving Functor
+
+type instance Is List f = IsList f
+
+type family IsList f where
+    IsList List = True
+    IsList f = False
 
 class Member List l => EffectList l
 instance Member List l => EffectList l
