@@ -10,10 +10,9 @@ effects.
 For example, the following code implements a handler for exceptions:
 
     runException :: Effect (Exception e ': es) a -> Effect es (Either e a)
-    runException =
-        handle (\x -> return (Right x))
-        $ eliminate (\(Exception e) -> return (Left e))
-        $ defaultRelay
+    runException = eliminate
+        (\x -> return (Right x))
+        (\(Exception e) -> return (Left e))
 
 Compare this to the corresponding code in extensible-effects
 (http://hackage.haskell.org/package/extensible-effects):
@@ -24,18 +23,14 @@ Compare this to the corresponding code in extensible-effects
         loop (Val x) = return (Right x)
         loop (E u)   = handleRelay u loop (\(Exc e) -> return (Left e))
 
-In particular:
-
-* Effect implementors are not required to do any recursion.
-* The functions for writing effect handlers can be easily composed.
+In particular, effect implementors are not required to do any recursion, thereby
+making effect handlers more composeable.
 
 Future Work
 ===========
 
-* Support for GHC 7.6. This will require some very heavy abuse of OverlappingInstances, but it can be done.
-* Encapsulation of effects. Encapsulation of effects requires the ability to group and rename effects.
-Only the grouping is currently supported (via the `Union` effect). Renaming is much tricker.
+* Support for GHC 7.6. This will require ~~very~~ extremely heavy abuse of OverlappingInstances, but it can be done.
+* ~~Encapsulation of effects.~~ Done.
 * Improved exceptions. Currently:
-  * There is no way to ensure a block of code will be run regardless of _any_ exceptions thrown.
-  The `finally` function only works with an exception of a single type.
-  * IO/Async exceptions aren't yet supported.
+    * ~~The `finally` function only works with an exception of a single type.~~ Fixed.
+    * IO/Async exceptions aren't yet supported.
