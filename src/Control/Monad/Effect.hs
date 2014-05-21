@@ -82,7 +82,12 @@ send x = Effect $ \point bind -> bind $ point <$> Union.inject x -- Inlined for 
 sendEffect :: (Functor f, Member f l, Effectful l r) => f r -> r
 sendEffect = relay . Union.inject
 
--- | The class of types which result in an effect.
+-- | The class of types which result in an effect. That is:
+--
+-- > Effect l r
+-- > a -> Effect l r
+-- > a -> b -> Effect l r
+-- > ...
 class l ~ EffectsOf r => Effectful l r where
     -- | Determines the effects associated with the return type of a function.
     type family EffectsOf r :: Row (* -> *)
@@ -103,11 +108,19 @@ instance Effectful l r => Effectful l (a -> r) where
 -- | Handles an effect without eliminating it. The given function is passed an
 -- effect value parameterized by the output type (i.e. the return type of
 -- `handle`).
+--
+-- The most common instantiation of this function is:
+--
+-- > (a -> Effect l b) -> (f (Effect l b) -> Effect l b) -> Effect l a -> Effect l b
 intercept :: (Effectful l r, Member f l) => (a -> r) -> (f r -> r) -> Effect l a -> r
 intercept point bind = unEffect point $ \u -> maybe (relay u) bind (Union.project u)
 
 -- | Completely handles an effect. The given function is passed an effect value
 -- parameterized by the output type (i.e. the return type of `handle`).
+--
+-- The most common instantiation of this function is:
+--
+-- > (a -> Effect l b) -> (f (Effect l b) -> Effect l b) -> Effect (f ': l) a -> Effect l b
 eliminate :: Effectful l r => (a -> r) -> (f r -> r) -> Effect (f :+ l) a -> r
 eliminate point bind = unEffect point (either bind relay . Union.pop)
 

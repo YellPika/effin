@@ -14,7 +14,7 @@ module Data.Union (
     flatten, unflatten
 ) where
 
-import Data.Index (Index, index)
+import Data.Index (Index)
 import qualified Data.Index as Index
 
 import Data.Type.Row
@@ -40,12 +40,12 @@ unwrap :: Union (f :+ Nil) a -> f a
 unwrap (Union i x) = gcastWith (Index.trivial i) x
 
 inject :: (Functor f, Member f l) => f a -> Union l a
-inject = Union index
+inject = Union Index.index
 
 project :: Member f l => Union l a -> Maybe (f a)
 project (Union i x) = fmap (\refl -> castWith (apply refl Refl) x) mRefl
   where
-    mRefl = testEquality i index
+    mRefl = testEquality i Index.index
 
 swap :: Union (f :+ g :+ l) a -> Union (g :+ f :+ l) a
 swap (Union i x) = Union (Index.swap i) x
