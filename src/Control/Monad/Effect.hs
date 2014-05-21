@@ -40,14 +40,14 @@ import Data.Type.Row
 import Control.Applicative (Applicative (..), (<$>))
 import Control.Monad (join)
 
--- | An effectful computation. An @Effect es a@ may perform any of the effects
+-- | An effectful computation. An @Effect l a@ may perform any of the effects
 -- specified by the list of effects @l@ before returning a result of type @a@.
 -- The definition is isomorphic to the following GADT:
 --
 -- @
--- data Effect es a where
---     Done :: a -> Effect es a
---     Side :: `Union` es (Effect es a) -> Effect es a
+-- data Effect l a where
+--     Done :: a -> Effect l a
+--     Side :: `Union` l (Effect l a) -> Effect l a
 -- @
 newtype Effect l a = Effect (forall r. (a -> r) -> (Union l r -> r) -> r)
 
@@ -167,13 +167,13 @@ translate f = unEffect return (relay . f)
 
 -- | Converts a set of effects @l@ into a single effect @f@.
 --
--- prop> mask f = conceal . rename f . unflatten
+-- @ mask f = `conceal` . `rename` f . `unflatten` @
 mask :: (Functor f, KnownLength l, Member f m) => (forall r. Union l r -> f r) -> Effect (l :++ m) a -> Effect m a
 mask f = conceal . rename f . unflatten
 
 -- | Converts an effect @f@ into a set of effects @l@.
 --
--- prop> mask f = conceal . rename f . unflatten
+-- @ unmask f = `flatten` . `rename` f . `reveal` @
 unmask :: (Functor f, Inclusive l, Member f m) => (forall r. f r -> Union l r) -> Effect m a -> Effect (l :++ m) a
 unmask f = flatten . rename f . reveal
 

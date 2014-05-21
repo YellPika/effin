@@ -23,7 +23,8 @@ import Data.Type.Equality ((:~:) (..), apply, castWith, gcastWith, testEquality)
 
 -- | Represents a union of the list of type constructors in @l@ parameterized
 -- by @a@. As an effect, it represents the union of each type constructor's
--- corresponding effect.
+-- corresponding effect. From the user's perspective, it provides a way to
+-- encapsulate multiple effects.
 data Union l a where
     Union :: Functor f => Index l f -> f a -> Union l a
 
