@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,23 +18,29 @@ module Control.Monad.Effect (
     eliminate, intercept,
     extend, enable,
     conceal, reveal, rename,
-    flatten, unflatten,
+    swap, rotate,
 
+    -- * Unions
+    Union, flatten, unflatten,
 
     -- * Membership
-    Member, MemberEffect, Is
+    Member, MemberEffect, Is,
+
+    -- * Effect Rows
+    Row (..), type (:++),
+    KnownLength, Inclusive
 ) where
 
 import Data.Union (Union)
 import qualified Data.Union as Union
 
-import Data.Type.List
+import Data.Type.Row
 
 import Control.Applicative (Applicative (..), (<$>))
 import Control.Monad (join)
 
 -- | An effectful computation. An @Effect es a@ may perform any of the effects
--- specified by the list of effects @es@ before returning a result of type @a@.
+-- specified by the list of effects @l@ before returning a result of type @a@.
 -- The definition is isomorphic to the following GADT:
 --
 -- @
@@ -77,7 +84,7 @@ sendEffect = relay . Union.inject
 -- | The class of types which result in an effect.
 class l ~ EffectsOf r => Effectful l r where
     -- | Determines the effects associated with the return type of a function.
-    type family EffectsOf r :: List (* -> *)
+    type family EffectsOf r :: Row (* -> *)
 
     relay :: Union l r -> r
 
@@ -125,6 +132,14 @@ reveal = translate Union.reveal
 rename :: Functor g => (forall r. f r -> g r) -> Effect (f :+ l) a -> Effect (g :+ l) a
 rename f = translate (either (Union.inject . f) Union.push . Union.pop)
 
+-- | Reorders the first two effects in a computation.
+swap :: Effect (f :+ g :+ l) a -> Effect (g :+ f :+ l) a
+swap = translate Union.swap
+
+-- | Rotates the first three effects in a computation.
+rotate :: Effect (f :+ g :+ h :+ l) a -> Effect (g :+ h :+ f :+ l) a
+rotate = translate Union.rotate
+
 -- | Distributes the sub-effects of a `Union` effect across a computation.
 flatten :: Inclusive l => Effect (Union l :+ m) a -> Effect (l :++ m) a
 flatten = translate Union.flatten
@@ -141,11 +156,17 @@ translate f = unEffect return (relay . f)
 -- For example:
 --
 -- > data Reader r a = ...
--- > data ReaderType
 -- >
--- > type EffectReader r l = MemberEffect ReaderType (Reader r) l
+-- > type instance Is Reader f where
+-- >     Is Reader (Reader r) = True
+-- >     Is Reader f = False
 -- >
--- > ask :: EffectReader r l => Effect l r
+-- > type ReaderEffect r l = MemberEffect Reader (Reader r) l
+-- >
+-- > ask :: ReaderEffect r l => Effect l r
 -- > ask = ...
+--
+-- Given the constraint @ReaderEffect r l@ in the above example, @r@ can be
+-- inferred from @l@.
 class (Member f l, f ~ InstanceOf name l) => MemberEffect name f l
 instance (Member f l, f ~ InstanceOf name l) => MemberEffect name f l

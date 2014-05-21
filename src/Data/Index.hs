@@ -14,14 +14,14 @@ module Data.Index (
     prepend, append, split
 ) where
 
-import Data.Type.List
+import Data.Type.Row
 import Data.Type.Nat
 
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
 import Unsafe.Coerce (unsafeCoerce)
 
-newtype Index (l :: List k) (e :: k) = Index Integer
+newtype Index (l :: Row k) (e :: k) = Index Integer
   deriving Show
 
 instance TestEquality (Index l) where

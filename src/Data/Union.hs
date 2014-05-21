@@ -17,7 +17,7 @@ module Data.Union (
 import Data.Index (Index, index)
 import qualified Data.Index as Index
 
-import Data.Type.List
+import Data.Type.Row
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..), apply, castWith, gcastWith, testEquality)
 
