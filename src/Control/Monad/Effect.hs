@@ -19,6 +19,7 @@ module Control.Monad.Effect (
     extend, enable,
     conceal, reveal, rename,
     swap, rotate,
+    mask, unmask,
 
     -- * Unions
     Union, flatten, unflatten,
@@ -150,6 +151,18 @@ unflatten = translate Union.unflatten
 
 translate :: (forall r. Union l r -> Union m r) -> Effect l a -> Effect m a
 translate f = unEffect return (relay . f)
+
+-- | Converts a set of effects @l@ into a single effect @f@.
+--
+-- prop> mask f = conceal . rename f . unflatten
+mask :: (Functor f, KnownLength l, Member f m) => (forall r. Union l r -> f r) -> Effect (l :++ m) a -> Effect m a
+mask f = conceal . rename f . unflatten
+
+-- | Converts an effect @f@ into a set of effects @l@.
+--
+-- prop> mask f = conceal . rename f . unflatten
+unmask :: (Functor f, Inclusive l, Member f m) => (forall r. f r -> Union l r) -> Effect m a -> Effect (l :++ m) a
+unmask f = flatten . rename f . reveal
 
 -- | A refined `Member`ship constraint that can infer @f@ from @l@, given
 -- @name@. In order for this to be used, @`Is` name f@ must be defined.

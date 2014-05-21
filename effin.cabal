@@ -19,10 +19,14 @@ flag mtl
 
 library
   exposed-modules:
+    Control.Effect.Bracket,
+    Control.Effect.Coroutine,
+    Control.Effect.Exception,
     Control.Effect.Reader,
     Control.Effect.Lift,
     Control.Effect.List,
     Control.Effect.State,
+    Control.Effect.Witness,
     Control.Effect.Writer,
     Control.Monad.Effect
 

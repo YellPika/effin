@@ -63,7 +63,7 @@ local f effect = do
 
 -- | Executes a reader computation which obtains
 -- its environment value from a state effect.
-stateReader :: EffectState s es => Effect (Reader s :+ es) a -> Effect es a
+stateReader :: EffectState s l => Effect (Reader s :+ l) a -> Effect l a
 stateReader = eliminate return (\(Reader f) -> get >>= f)
 
 -- | Completely handles a `Reader` effect by providing an
