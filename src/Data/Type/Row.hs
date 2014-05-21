@@ -66,9 +66,21 @@ instance Inclusive l => Inclusive (e :+ l)
 -- associated types for arbitrary effects.
 type family Is (name :: k) (f :: * -> *) :: Bool
 
-type InstanceOf name l = NthInstanceOf name Zero l
+type InstanceOf name l = InstanceOfNone name '[] l
 
-type family NthInstanceOf name n l where
-    NthInstanceOf name Zero     (f :+ l) = If (Is name f) f (NthInstanceOf name Zero l)
-    NthInstanceOf name (Succ n) (f :+ l) = NthInstanceOf name (If (Is name f) (Succ n) n) l
-    NthInstanceOf name n        (f :- l) = NthInstanceOf name (If (Is name f) (Succ n) n) l
+-- Any instance of name in l but not in ex.
+type family InstanceOfNone name ex l where
+    InstanceOfNone name ex (f :- l) = InstanceOfNone name (f ': ex) l
+    InstanceOfNone name ex (f :+ l) =
+        If (Is name f)
+            (If (Elem f ex) (InstanceOfNone name (Remove f ex) l) f)
+            (InstanceOfNone name ex l)
+
+type family Elem e l where
+    Elem e '[] = False
+    Elem e (e ': l) = True
+    Elem e (f ': l) = Elem e l
+
+type family Remove e l where
+    Remove e (e ': l) = l
+    Remove e (f ': l) = f ': Remove e l
