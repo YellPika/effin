@@ -22,7 +22,6 @@ library
     Control.Effect.Reader,
     Control.Effect.Lift,
     Control.Effect.List,
-    Control.Effect.Scope,
     Control.Effect.State,
     Control.Effect.Writer,
     Control.Monad.Effect

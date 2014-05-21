@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Control.Effect.List (
-    EffectList, runList,
+    EffectList, List, runList,
     choose, never, select,
 
     CutEffect, Cut, runCut,
