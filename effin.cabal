@@ -44,6 +44,7 @@ flag mtl
 
 library
   exposed-modules:
+    Control.Effect,
     Control.Effect.Bracket,
     Control.Effect.Coroutine,
     Control.Effect.Exception,
