@@ -52,6 +52,7 @@ library
     Control.Effect.Lift,
     Control.Effect.List,
     Control.Effect.State,
+    Control.Effect.Thread,
     Control.Effect.Witness,
     Control.Effect.Writer,
     Control.Monad.Effect
