@@ -183,9 +183,11 @@ unmask f = flatten . rename f . reveal
 --
 -- > data Reader r a = ...
 -- >
--- > type instance Is Reader f where
--- >     Is Reader (Reader r) = True
--- >     Is Reader f = False
+-- > type instance Is Reader f = IsReader f
+-- >
+-- > type IsReader f where
+-- >     IsReader (Reader r) = True
+-- >     IsReader f = False
 -- >
 -- > type ReaderEffect r l = MemberEffect Reader (Reader r) l
 -- >
