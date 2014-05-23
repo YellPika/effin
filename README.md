@@ -29,8 +29,11 @@ making effect handlers more composeable.
 Future Work
 ===========
 
-* Support for GHC 7.6. This will require ~~very~~ extremely heavy abuse of OverlappingInstances, but it can be done.
+* Support for GHC 7.6. This will require ~~very~~ extremely heavy abuse of `OverlappingInstances`, but it can be done.
 * ~~Encapsulation of effects.~~ Done.
 * Improved exceptions. Currently:
     * ~~The `finally` function only works with an exception of a single type.~~ Fixed.
     * IO/Async exceptions aren't yet supported.
+* Support for effects that require linearity. In particular, any `Region` effect would be
+  unsafe because there's no way to ensure that effects like `Thread` aren't used simultaneously.
+  Perhaps this can be achieved with something akin to how the IO monad ensures linearity.
