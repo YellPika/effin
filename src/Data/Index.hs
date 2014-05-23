@@ -94,6 +94,6 @@ append (Index i) _ = Index i
 split :: forall e l m. KnownLength l => Index (l :++ m) e -> Either (Index l e) (Index m e)
 split (Index i)
     | i < n = Left (Index i)
-    | otherwise = Right (Index (i - 1))
+    | otherwise = Right (Index (i - n))
   where
     n = size (Proxy :: Proxy l)

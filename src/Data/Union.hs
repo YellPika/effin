@@ -58,9 +58,9 @@ push :: Union l a -> Union (f :+ l) a
 push (Union i x) = Union (Index.push i) x
 
 pop :: Union (f :+ l) a -> Either (f a) (Union l a)
-pop u@(Union i x) =
-    case project u of
-        Just r -> Left r
+pop (Union i x) =
+    case testEquality i Index.zero of
+        Just Refl -> Left x
         Nothing -> Right (Union (Index.pop i) x)
 
 enable :: Union (f :- l) a -> Union l a
