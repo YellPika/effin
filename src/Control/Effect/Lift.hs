@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -17,7 +16,6 @@ module Control.Effect.Lift (
 ) where
 
 import Control.Monad.Effect
-import Control.Monad (join, liftM)
 
 #ifdef MTL
 import Control.Monad.Trans (MonadIO (..))
@@ -51,4 +49,4 @@ liftEffect = sendEffect . Lift
 runLift :: Monad m => Effect (Lift m :+ Nil) a -> m a
 runLift = runEffect . eliminate
     (return . return)
-    (\(Lift m) k -> return . join $ liftM (runEffect . k) m)
+    (\(Lift m) k -> return $ m >>= runEffect . k)
