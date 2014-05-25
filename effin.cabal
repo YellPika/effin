@@ -15,15 +15,18 @@ description:
   transformers. The original paper can be found at
   <http://okmij.org/ftp/Haskell/extensible/exteff.pdf>. The main differences
   between this library and the one described in the paper are that this library
-  does not use the Typeable type class, and has a simpler API for handling
+  does not use the Typeable type class, does not require that effects implement
+  the Functor type class, and has a simpler API for handling
   effects.
   .
   For example, the following code implements a handler for exceptions:
   .
-  > runException :: Effect (Exception e ': es) a -> Effect es (Either e a)
+  > newtype Exception e = Throw e
+  >
+  > runException :: Effect (Exception e :+ es) a -> Effect es (Either e a)
   > runException = eliminate
   >     (\x -> return (Right x))
-  >     (\(Exception e) -> return (Left e))
+  >     (\(Throw e) k -> return (Left e))
   .
   Compare this to the corresponding code in extensible-effects
   (<http://hackage.haskell.org/package/extensible-effects>):

@@ -105,9 +105,8 @@ instance Effectful l r => Effectful l (a -> r) where
     type EffectsOf (a -> r) = EffectsOf r
     relay u f y = relay u (\x -> f x y)
 
--- | Handles an effect without eliminating it. The given function is passed an
--- effect value parameterized by the output type (i.e. the return type of
--- `handle`).
+-- | Handles an effect without eliminating it. The second function parameter is
+-- passed an effect value and a continuation function.
 --
 -- The most common instantiation of this function is:
 --
@@ -115,8 +114,8 @@ instance Effectful l r => Effectful l (a -> r) where
 intercept :: (Effectful l r, Member f l) => (a -> r) -> (forall b. f b -> (b -> r) -> r) -> Effect l a -> r
 intercept point bind = unEffect point $ \u -> maybe (relay u) bind (Union.project u)
 
--- | Completely handles an effect. The given function is passed an effect value
--- parameterized by the output type (i.e. the return type of `handle`).
+-- | Completely handles an effect. The second function parameter is passed an
+-- effect value and a continuation function.
 --
 -- The most common instantiation of this function is:
 --

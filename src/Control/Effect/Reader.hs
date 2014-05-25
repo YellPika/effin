@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -19,6 +20,7 @@ module Control.Effect.Reader (
 
 import Control.Effect.State
 import Control.Monad.Effect
+import Control.Applicative ((<$>))
 
 #ifdef MTL
 import Data.Type.Row
@@ -31,7 +33,8 @@ instance (Member (Reader r) l, Reader r ~ InstanceOf Reader l) => R.MonadReader 
 #endif
 
 -- | An effect that provides an implicit environment.
-newtype Reader r a = Reader (r -> a)
+data Reader r a where
+    Ask :: Reader r r
 
 type instance Is Reader f = IsReader f
 
@@ -44,24 +47,27 @@ instance MemberEffect Reader (Reader r) l => EffectReader r l
 
 -- | Retrieves the current environment.
 ask :: EffectReader r l => Effect l r
-ask = asks id
+ask = send Ask
 
 -- | Retrieves a value that is a function of the current environment.
 asks :: EffectReader r l => (r -> a) -> Effect l a
-asks = send . Reader
+asks f = f <$> ask
 
 -- | Runs a computation with a modified environment.
 local :: EffectReader r l => (r -> r) -> Effect l a -> Effect l a
 local f effect = do
     env <- asks f
-    intercept return (\(Reader g) k -> k (g env)) effect
+    intercept return (bind env) effect
 
 -- | Executes a reader computation which obtains
 -- its environment value from a state effect.
 stateReader :: EffectState s l => Effect (Reader s :+ l) a -> Effect l a
-stateReader = eliminate return (\(Reader f) k -> get >>= k . f)
+stateReader = eliminate return (\Ask k -> get >>= k)
 
 -- | Completely handles a `Reader` effect by providing an
 -- environment value to be used throughout the computation.
 runReader :: r -> Effect (Reader r :+ l) a -> Effect l a
-runReader env = eliminate return (\(Reader f) k -> k (f env))
+runReader env = eliminate return (bind env)
+
+bind :: r -> Reader r a -> (a -> s) -> s
+bind env Ask k = k env
