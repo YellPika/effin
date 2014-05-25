@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -34,7 +35,8 @@ instance (Monoid w, Member (Writer w) l, Writer w ~ InstanceOf Writer l) => W.Mo
 #endif
 
 -- | An effect that allows accumulating output.
-data Writer w a = Writer w a
+data Writer w a where
+    Tell :: w -> Writer w ()
 
 type instance Is Writer f = IsWriter f
 
@@ -47,7 +49,7 @@ instance (Monoid w, MemberEffect Writer (Writer w) l) => EffectWriter w l
 
 -- | Writes a value to the output.
 tell :: EffectWriter w l => w -> Effect l ()
-tell x = send (Writer x ())
+tell = send . Tell
 
 -- | Executes a computation, and obtains the writer output.
 -- The writer output of the inner computation is still
@@ -78,7 +80,7 @@ censor f effect = pass $ do
 
 -- | Executes a writer computation which sends its output to a state effect.
 stateWriter :: (Monoid s, EffectState s l) => Effect (Writer s :+ l) a -> Effect l a
-stateWriter = eliminate return (\(Writer l x) k -> modify (mappend l) >> k x)
+stateWriter = eliminate return (\(Tell l) k -> modify (mappend l) >> k ())
 
 -- | Completely handles a writer effect. The writer value must be a `Monoid`.
 -- `mempty` is used as an initial value, and `mappend` is used to combine values.
@@ -90,4 +92,4 @@ point :: Monoid w => a -> Effect l (a, w)
 point x = return (x, mempty)
 
 bind :: Monoid w => Writer w a -> (a -> Effect l (b, w)) -> Effect l (b, w)
-bind (Writer l x) k = second (mappend l) <$> k x
+bind (Tell l) k = second (mappend l) <$> k ()
