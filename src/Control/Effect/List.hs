@@ -46,7 +46,7 @@ select = join . choose
 -- | Obtains all possible values from a computation
 -- parameterized by a nondeterminism effect.
 runList :: Effect (List :+ l) a -> Effect l [a]
-runList = eliminate (return . return) (\(List xs) k -> fmap concat $ mapM k xs)
+runList = eliminate (return . return) (\(List xs) k -> concat <$> mapM k xs)
 
 instance EffectList l => Alternative (Effect l) where
     empty = never

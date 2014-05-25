@@ -35,7 +35,7 @@ unsafeRefl = unsafeCoerce Refl
 
 -- | An effect describing the generation of unique identifiers.
 data Witness s a where
-    Witness :: Witness s (Token s a)
+    NewToken :: Witness s (Token s a)
 
 type instance Is Witness f = IsWitness f
 
@@ -52,12 +52,12 @@ type family WitnessType l where
 
 -- | Generates a new, unique `Token`.
 newToken :: EffectWitness s l => Effect l (Token s a)
-newToken = send Witness
+newToken = send NewToken
 
 -- | Completely handles a `Witness` effect. The Rank-2 quantifier ensures that
 -- unique identifiers cannot escape the context in which they were created.
 runWitness :: (forall s. Effect (Witness s :+ l) a) -> Effect l a
 runWitness effect = run effect
   where
-    run = eliminate return $ \Witness k ->
+    run = eliminate return $ \NewToken k ->
         k $ Token $ unsafePerformIO newUnique
