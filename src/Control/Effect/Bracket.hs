@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -24,7 +23,6 @@ import Control.Monad.Effect
 -- | Provides a base effect for exceptions. This effect allows the dynamic
 -- generation of exception classes at runtime.
 newtype Bracket s a = Bracket { unBracket :: Union (Raise s :+ Witness s :+ Nil) a }
-  deriving Functor
 
 -- | The type of placeholder values indicating an exception class.
 data Tag s a = Tag (a -> String) (Token s a)
@@ -77,7 +75,7 @@ exceptAny effect handlers = effect `exceptAll` \i x ->
 exceptAll :: EffectBracket s l => Effect l a -> (forall b. Tag s b -> b -> Effect l a) -> Effect l a
 exceptAll effect handler = mask' $ run $ unmask' effect
   where
-    run = intercept return $ \(Raise t x) -> unmask' (handler t x)
+    run = intercept return $ \(Raise t x) _ -> unmask' (handler t x)
 
 -- | Executes a computation with a resource, and ensures that the resource is
 -- cleaned up afterwards.
@@ -122,5 +120,3 @@ unmask' = unmask unBracket
 data Raise s a where
     Raise :: Tag s b -> b -> Raise s a
 
-instance Functor (Raise s) where
-    fmap _ (Raise n x) = Raise n x

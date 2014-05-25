@@ -26,21 +26,18 @@ import Data.Type.Equality ((:~:) (..), apply, castWith, gcastWith, testEquality)
 -- corresponding effect. From the user's perspective, it provides a way to
 -- encapsulate multiple effects.
 data Union l a where
-    Union :: Functor f => Index l f -> f a -> Union l a
-
-instance Functor (Union l) where
-    fmap f (Union i x) = Union i (fmap f x)
+    Union :: Index l f -> f a -> Union l a
 
 absurd :: Union Nil a -> b
 absurd (Union i _) = Index.absurd i
 
-wrap :: Functor f => f a -> Union (f :+ l) a
+wrap :: f a -> Union (f :+ l) a
 wrap = inject
 
 unwrap :: Union (f :+ Nil) a -> f a
 unwrap (Union i x) = gcastWith (Index.trivial i) x
 
-inject :: (Functor f, Member f l) => f a -> Union l a
+inject :: Member f l => f a -> Union l a
 inject = Union Index.index
 
 project :: Member f l => Union l a -> Maybe (f a)

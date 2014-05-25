@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -33,10 +32,6 @@ instance (Member (Reader r) l, Reader r ~ InstanceOf Reader l) => R.MonadReader 
 
 -- | An effect that provides an implicit environment.
 newtype Reader r a = Reader (r -> a)
-  deriving Functor
-
-unReader :: r -> Reader r a -> a
-unReader x (Reader f) = f x
 
 type instance Is Reader f = IsReader f
 
@@ -59,14 +54,14 @@ asks = send . Reader
 local :: EffectReader r l => (r -> r) -> Effect l a -> Effect l a
 local f effect = do
     env <- asks f
-    intercept return (unReader env) effect
+    intercept return (\(Reader g) k -> k (g env)) effect
 
 -- | Executes a reader computation which obtains
 -- its environment value from a state effect.
 stateReader :: EffectState s l => Effect (Reader s :+ l) a -> Effect l a
-stateReader = eliminate return (\(Reader f) -> get >>= f)
+stateReader = eliminate return (\(Reader f) k -> get >>= k . f)
 
 -- | Completely handles a `Reader` effect by providing an
 -- environment value to be used throughout the computation.
 runReader :: r -> Effect (Reader r :+ l) a -> Effect l a
-runReader env = eliminate return (unReader env)
+runReader env = eliminate return (\(Reader f) k -> k (f env))

@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -16,7 +15,6 @@ import Control.Monad.Effect
 
 -- | An effect describing a suspendable computation.
 data Coroutine i o a = Coroutine (o -> a) i
-  deriving Functor
 
 type instance Is Coroutine f = IsCoroutine f
 
@@ -34,7 +32,7 @@ suspend = send . Coroutine id
 
 -- | Converts a `Coroutine` effect into an `Iterator`.
 runCoroutine :: Effect (Coroutine i o :+ l) a -> Effect l (Iterator i o l a)
-runCoroutine = eliminate (return . Done) (\(Coroutine f k) -> return (Next f k))
+runCoroutine = eliminate (return . Done) (\(Coroutine f x) k -> return (Next (k . f) x))
 
 -- | A suspended computation.
 data Iterator i o l a

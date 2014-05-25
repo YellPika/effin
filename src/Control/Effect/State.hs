@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -35,7 +34,6 @@ instance (Member (State s) l, State s ~ InstanceOf State l) => S.MonadState s (E
 
 -- | An effect where a state value is threaded throughout the computation.
 newtype State s a = State (s -> (a, s))
-  deriving Functor
 
 type instance Is State f = IsState f
 
@@ -84,7 +82,7 @@ withState f x = modify f >> x
 runState :: s -> Effect (State s :+ l) a -> Effect l (a, s)
 runState = flip $ eliminate
     (\x s -> return (x, s))
-    (\(State k) s -> let (k', s') = k s in k' s')
+    (\(State f) k s -> let (x, s') = f s in k x s')
 
 -- | Completely handles a `State` effect, and discards the final state.
 evalState :: s -> Effect (State s :+ l) a -> Effect l a

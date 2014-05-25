@@ -37,7 +37,7 @@ import qualified Data.Union as Union
 
 import Data.Type.Row
 
-import Control.Applicative (Applicative (..), (<$>))
+import Control.Applicative (Applicative (..))
 import Control.Monad (join)
 
 -- | An effectful computation. An @Effect l a@ may perform any of the effects
@@ -49,9 +49,9 @@ import Control.Monad (join)
 --     Done :: a -> Effect l a
 --     Side :: `Union` l (Effect l a) -> Effect l a
 -- @
-newtype Effect l a = Effect (forall r. (a -> r) -> (Union l r -> r) -> r)
+newtype Effect l a = Effect (forall r. (a -> r) -> (forall b. Union l b -> (b -> r) -> r) -> r)
 
-unEffect :: (a -> r) -> (Union l r -> r) -> Effect l a -> r
+unEffect :: (a -> r) -> (forall b. Union l b -> (b -> r) -> r) -> Effect l a -> r
 unEffect point bind (Effect f) = f point bind
 
 instance Functor (Effect l) where
@@ -72,15 +72,15 @@ runEffect :: Effect Nil a -> a
 runEffect (Effect f) = f id Union.absurd
 
 -- | Executes an effect of type @f@ that produces a return value of type @a@.
-send :: (Functor f, Member f l) => f a -> Effect l a
-send x = Effect $ \point bind -> bind $ point <$> Union.inject x -- Inlined for efficiency (from relay).
+send :: Member f l => f a -> Effect l a
+send x = Effect $ \point bind -> bind (Union.inject x) point
 
 -- | Executes an effect of type @f@ that produces a return value of type @r@.
 -- Note that a specific instance of this function is of type
--- @(Functor f, Member f l) => f (Effect l a) -> Effect l a@, which allows users
+-- @Member f l => f (Effect l a) -> Effect l a@, which allows users
 -- to send effects parameterized by effects.
-sendEffect :: (Functor f, Member f l, Effectful l r) => f r -> r
-sendEffect = relay . Union.inject
+sendEffect :: (Member f l, Effectful l r) => f r -> r
+sendEffect x = relay (Union.inject x) id
 
 -- | The class of types which result in an effect. That is:
 --
@@ -92,18 +92,18 @@ class l ~ EffectsOf r => Effectful l r where
     -- | Determines the effects associated with the return type of a function.
     type family EffectsOf r :: Row (* -> *)
 
-    relay :: Union l r -> r
+    relay :: Union l a -> (a -> r) -> r
 
     -- Prevents the `Minimal Complete Definition` box from showing.
     relay = undefined
 
 instance Effectful l (Effect l a) where
     type EffectsOf (Effect l a) = l
-    relay u = join $ Effect $ \point bind -> bind $ point <$> u
+    relay u f = join $ Effect $ \point bind -> bind u (point . f)
 
 instance Effectful l r => Effectful l (a -> r) where
     type EffectsOf (a -> r) = EffectsOf r
-    relay u x = relay (fmap ($ x) u)
+    relay u f y = relay u (\x -> f x y)
 
 -- | Handles an effect without eliminating it. The given function is passed an
 -- effect value parameterized by the output type (i.e. the return type of
@@ -112,7 +112,7 @@ instance Effectful l r => Effectful l (a -> r) where
 -- The most common instantiation of this function is:
 --
 -- > (a -> Effect l b) -> (f (Effect l b) -> Effect l b) -> Effect l a -> Effect l b
-intercept :: (Effectful l r, Member f l) => (a -> r) -> (f r -> r) -> Effect l a -> r
+intercept :: (Effectful l r, Member f l) => (a -> r) -> (forall b. f b -> (b -> r) -> r) -> Effect l a -> r
 intercept point bind = unEffect point $ \u -> maybe (relay u) bind (Union.project u)
 
 -- | Completely handles an effect. The given function is passed an effect value
@@ -121,7 +121,7 @@ intercept point bind = unEffect point $ \u -> maybe (relay u) bind (Union.projec
 -- The most common instantiation of this function is:
 --
 -- > (a -> Effect l b) -> (f (Effect l b) -> Effect l b) -> Effect (f ': l) a -> Effect l b
-eliminate :: Effectful l r => (a -> r) -> (f r -> r) -> Effect (f :+ l) a -> r
+eliminate :: Effectful l r => (a -> r) -> (forall b. f b -> (b -> r) -> r) -> Effect (f :+ l) a -> r
 eliminate point bind = unEffect point (either bind relay . Union.pop)
 
 -- | Adds an arbitrary effect to the head of the effect list.
@@ -143,7 +143,7 @@ reveal :: Member f l => Effect l a -> Effect (f :+ l) a
 reveal = translate Union.reveal
 
 -- | Translates the first effect in the effect list into another effect.
-rename :: Functor g => (forall r. f r -> g r) -> Effect (f :+ l) a -> Effect (g :+ l) a
+rename :: (forall r. f r -> g r) -> Effect (f :+ l) a -> Effect (g :+ l) a
 rename f = translate (either (Union.inject . f) Union.push . Union.pop)
 
 -- | Reorders the first two effects in a computation.
@@ -168,13 +168,13 @@ translate f = unEffect return (relay . f)
 -- | Converts a set of effects @l@ into a single effect @f@.
 --
 -- @ mask f = `conceal` . `rename` f . `unflatten` @
-mask :: (Functor f, KnownLength l, Member f m) => (forall r. Union l r -> f r) -> Effect (l :++ m) a -> Effect m a
+mask :: (KnownLength l, Member f m) => (forall r. Union l r -> f r) -> Effect (l :++ m) a -> Effect m a
 mask f = conceal . rename f . unflatten
 
 -- | Converts an effect @f@ into a set of effects @l@.
 --
 -- @ unmask f = `flatten` . `rename` f . `reveal` @
-unmask :: (Functor f, Inclusive l, Member f m) => (forall r. f r -> Union l r) -> Effect m a -> Effect (l :++ m) a
+unmask :: (Inclusive l, Member f m) => (forall r. f r -> Union l r) -> Effect m a -> Effect (l :++ m) a
 unmask f = flatten . rename f . reveal
 
 -- | A refined `Member`ship constraint that can infer @f@ from @l@, given

@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -31,7 +30,6 @@ instance (Member (Exception e) l, Exception e ~ InstanceOf Exception l) => E.Mon
 
 -- | An effect that describes the possibility of failure.
 data Exception e a = Raise e | Catch a (e -> a)
-  deriving Functor
 
 type instance Is Exception f = IsException f
 
@@ -60,5 +58,5 @@ runException effect = do
         (eliminate (return . Right) (bind tag) effect)
         (return . Left)
   where
-    bind tag (Raise e) = raiseWith tag e
-    bind tag (Catch x f) = exceptWith tag x f
+    bind tag (Raise e) _ = raiseWith tag e
+    bind tag (Catch x f) k = exceptWith tag (k x) (k . f)

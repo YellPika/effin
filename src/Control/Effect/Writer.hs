@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -36,7 +35,6 @@ instance (Monoid w, Member (Writer w) l, Writer w ~ InstanceOf Writer l) => W.Mo
 
 -- | An effect that allows accumulating output.
 data Writer w a = Writer w a
-  deriving Functor
 
 type instance Is Writer f = IsWriter f
 
@@ -80,7 +78,7 @@ censor f effect = pass $ do
 
 -- | Executes a writer computation which sends its output to a state effect.
 stateWriter :: (Monoid s, EffectState s l) => Effect (Writer s :+ l) a -> Effect l a
-stateWriter = eliminate return (\(Writer l x) -> modify (mappend l) >> x)
+stateWriter = eliminate return (\(Writer l x) k -> modify (mappend l) >> k x)
 
 -- | Completely handles a writer effect. The writer value must be a `Monoid`.
 -- `mempty` is used as an initial value, and `mappend` is used to combine values.
@@ -91,5 +89,5 @@ runWriter = eliminate point bind
 point :: Monoid w => a -> Effect l (a, w)
 point x = return (x, mempty)
 
-bind :: Monoid w => Writer w (Effect l (b, w)) -> Effect l (b, w)
-bind (Writer l k) = second (mappend l) <$> k
+bind :: Monoid w => Writer w a -> (a -> Effect l (b, w)) -> Effect l (b, w)
+bind (Writer l x) k = second (mappend l) <$> k x

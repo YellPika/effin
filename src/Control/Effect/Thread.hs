@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
@@ -19,7 +18,6 @@ import qualified Control.Concurrent as IO
 
 -- | An effect that describes concurrent computation.
 data Thread a = Yield a | Fork a a | Abort
-  deriving Functor
 
 class Member Thread l => EffectThread l
 instance Member Thread l => EffectThread l
@@ -97,8 +95,8 @@ data ThreadAST l
 -- different backends to interpret calls to fork/yield/abort as they please. See
 -- the implementations of runAsync, runSync, and runMain.
 toAST :: Effect (Thread :+ l) () -> Effect l (ThreadAST l)
-toAST = eliminate (\() -> return AbortAST) bind
+toAST = eliminate (\_ -> return AbortAST) bind
   where
-    bind Abort = return AbortAST
-    bind (Yield k) = return (YieldAST k)
-    bind (Fork child parent) = return (ForkAST child parent)
+    bind Abort _ = return AbortAST
+    bind (Yield x) k = return (YieldAST (k x))
+    bind (Fork child parent) k = return (ForkAST (k child) (k parent))

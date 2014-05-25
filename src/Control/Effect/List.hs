@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -21,8 +20,7 @@ import Control.Applicative (Alternative (..), (<$>))
 import Control.Monad (MonadPlus (..), (<=<), join)
 
 -- | A nondeterminism (backtracking) effect.
-newtype List a = List { unList :: [a] }
-  deriving Functor
+newtype List a = List [a]
 
 type instance Is List f = IsList f
 
@@ -48,7 +46,7 @@ select = join . choose
 -- | Obtains all possible values from a computation
 -- parameterized by a nondeterminism effect.
 runList :: Effect (List :+ l) a -> Effect l [a]
-runList = eliminate (return . return) (fmap concat . sequence . unList)
+runList = eliminate (return . return) (\(List xs) k -> fmap concat $ mapM k xs)
 
 instance EffectList l => Alternative (Effect l) where
     empty = never
@@ -61,7 +59,6 @@ instance EffectList l => MonadPlus (Effect l) where
 -- | Describes a Prolog-like cut effect.
 -- This effect must be used with the `List` effect.
 data Cut a = CutFalse
-  deriving Functor
 
 class (EffectList l, Member Cut l) => CutEffect l
 instance (EffectList l, Member Cut l) => CutEffect l
@@ -91,10 +88,10 @@ runCut = choose . snd <=< reifyCut
     -- should stop.
     reifyCut :: EffectList l => Effect (Cut :+ l) a -> Effect l (Bool, [a])
     reifyCut =
-        intercept return (runAll . unList) .
+        intercept return (\(List xs) k -> runAll (map k xs)) .
         eliminate
             (\x -> return (False, [x]))
-            (\CutFalse -> return (True, []))
+            (\CutFalse _ -> return (True, []))
 
     runAll [] = return (False, [])
     runAll (x:xs) = do
