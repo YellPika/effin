@@ -22,7 +22,9 @@ import Control.Monad.Effect
 
 -- | Provides a base effect for exceptions. This effect allows the dynamic
 -- generation of exception classes at runtime.
-newtype Bracket s a = Bracket { unBracket :: Union (Raise s :+ Witness s :+ Nil) a }
+data Bracket s a where
+    Raise :: Tag s b -> b -> Bracket s a
+    BWitness :: Witness s a -> Bracket s a
 
 -- | The type of placeholder values indicating an exception class.
 data Tag s a = Tag (a -> String) (Token s a)
@@ -42,11 +44,11 @@ instance MemberEffect Bracket (Bracket s) l => EffectBracket s l
 -- | Creates a new tag. The function parameter describes the error message that
 -- is shown in the case of an uncaught exception.
 newTag :: EffectBracket s l => (a -> String) -> Effect l (Tag s a)
-newTag toString = mask' $ Tag toString <$> newToken
+newTag toString = conceal $ Tag toString <$> rename BWitness newToken
 
 -- | Raises an exception of the specified class and value.
 raiseWith :: EffectBracket s l => Tag s b -> b -> Effect l a
-raiseWith tag value = mask' $ send $ Raise tag value
+raiseWith tag value = send $ Raise tag value
 
 -- | Specifies a handler for exceptions of a given class.
 exceptWith :: EffectBracket s l => Tag s b -> Effect l a -> (b -> Effect l a) -> Effect l a
@@ -73,9 +75,13 @@ exceptAny effect handlers = effect `exceptAll` \i x ->
 -- The most common use case for catching all exceptions is to do cleanup, which
 -- is what bracket is for.
 exceptAll :: EffectBracket s l => Effect l a -> (forall b. Tag s b -> b -> Effect l a) -> Effect l a
-exceptAll effect handler = mask' $ run $ unmask' effect
-  where
-    run = intercept return $ \(Raise t x) _ -> unmask' (handler t x)
+exceptAll effect handler = intercept
+    return
+    (\b k ->
+        case b of
+            Raise t x -> handler t x
+            _ -> send b >>= k)
+    effect
 
 -- | Executes a computation with a resource, and ensures that the resource is
 -- cleaned up afterwards.
@@ -103,20 +109,15 @@ finally effect finalizer = bracket
 -- | Executes a `Bracket` effect. The Rank-2 type ensures that `Tag`s do not
 -- escape their scope.
 runBracket :: (forall s. Effect (Bracket s :+ l) a) -> Effect l a
-runBracket effect =
-    runWitness
-    $ eliminate return (\(Raise (Tag f _) x) -> error (f x))
-    $ flatten
-    $ rename unBracket effect
+runBracket effect = runWitness (convert effect)
 
--- A couple helper functions for getting in and out of the base effects.
-mask' :: EffectBracket s l => Effect (Raise s :+ Witness s :+ l) a -> Effect l a
-mask' = mask Bracket
-
-unmask' :: EffectBracket s l => Effect l a -> Effect (Raise s :+ Witness s :+ l) a
-unmask' = unmask unBracket
-
--- Quick and dirty exceptions (because Union works with existing functors).
-data Raise s a where
-    Raise :: Tag s b -> b -> Raise s a
-
+convert :: Effect (Bracket s :+ l) a -> Effect (Witness s :+ l) a
+convert =
+    eliminate
+        return
+        (\t k ->
+            case t of
+                Raise (Tag f _) x -> error (f x)
+                BWitness w -> send w >>= k)
+    . swap
+    . extend

@@ -131,17 +131,21 @@ extend = translate Union.push
 enable :: Effect (f :- l) a -> Effect l a
 enable = translate Union.enable
 
--- | Hides an effect @g@ by translating each instance of @g@ into an instance of
--- another effect @f@.
+-- | Hides an effect @f@ by translating each instance of the effect into an
+-- equivalent effect further into the effect list.
+--
+-- prop> conceal = eliminate return (\x k -> send x >>= k)
 conceal :: Member f l => Effect (f :+ l) a -> Effect l a
 conceal = translate Union.conceal
 
--- | Hides an effect @g@ by translating each instance of another effect @f@ into
--- an instance of @g@.
+-- | Hides an effect @f@ by translating each instance of the effect into an
+-- equivalent effect at the head of the effect list.
 reveal :: Member f l => Effect l a -> Effect (f :+ l) a
 reveal = translate Union.reveal
 
 -- | Translates the first effect in the effect list into another effect.
+--
+-- prop> rename f = eliminate return (\x k -> send (f x) >>= k) . swap . extend
 rename :: (forall r. f r -> g r) -> Effect (f :+ l) a -> Effect (g :+ l) a
 rename f = translate (either (Union.inject . f) Union.push . Union.pop)
 
