@@ -81,8 +81,8 @@ swap (Index i)
 rotate :: Index (e :+ f :+ g :+ l) h -> Index (f :+ g :+ e :+ l) h
 rotate (Index i)
     | i == 0 = Index 2
-    | i == 1 = Index 1
-    | i == 2 = Index 0
+    | i == 1 = Index 0
+    | i == 2 = Index 1
     | otherwise = Index i
 
 prepend :: KnownLength l => proxy l -> Index m e -> Index (l :++ m) e
