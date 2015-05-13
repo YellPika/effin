@@ -1,7 +1,7 @@
 effin: Extensible Effects
 =========================
 
-This package implements extensible effects, and alternative to monad transformers.
+This package implements extensible effects, an alternative to monad transformers.
 The original paper can be found at http://okmij.org/ftp/Haskell/extensible/exteff.pdf.
 The main differences between this library and the one described in the paper are
 that this library does not use the Typeable type class, does not require that
