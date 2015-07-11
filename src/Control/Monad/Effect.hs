@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -37,7 +38,9 @@ import qualified Data.Union as Union
 
 import Data.Type.Row
 
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative (..))
+#endif
 import Control.Monad (join)
 
 -- | An effectful computation. An @Effect l a@ may perform any of the effects
@@ -68,7 +71,7 @@ instance Monad (Effect l) where
         f (unEffect point bind . g) bind
 
 -- | Converts an computation that produces no effects into a regular value.
-runEffect :: Effect Nil a -> a
+runEffect :: Effect 'Nil a -> a
 runEffect (Effect f) = f id Union.absurd
 
 -- | Executes an effect of type @f@ that produces a return value of type @a@.
@@ -120,49 +123,49 @@ intercept point bind = unEffect point $ \u -> maybe (relay u) bind (Union.projec
 -- The most common instantiation of this function is:
 --
 -- > (a -> Effect l b) -> (f (Effect l b) -> Effect l b) -> Effect (f ': l) a -> Effect l b
-eliminate :: Effectful l r => (a -> r) -> (forall b. f b -> (b -> r) -> r) -> Effect (f :+ l) a -> r
+eliminate :: Effectful l r => (a -> r) -> (forall b. f b -> (b -> r) -> r) -> Effect (f ':+ l) a -> r
 eliminate point bind = unEffect point (either bind relay . Union.pop)
 
 -- | Adds an arbitrary effect to the head of the effect list.
-extend :: Effect l a -> Effect (f :+ l) a
+extend :: Effect l a -> Effect (f ':+ l) a
 extend = translate Union.push
 
 -- | Enables an effect that was previously disabled.
-enable :: Effect (f :- l) a -> Effect l a
+enable :: Effect (f ':- l) a -> Effect l a
 enable = translate Union.enable
 
 -- | Hides an effect @f@ by translating each instance of the effect into an
 -- equivalent effect further into the effect list.
 --
 -- prop> conceal = eliminate return (\x k -> send x >>= k)
-conceal :: Member f l => Effect (f :+ l) a -> Effect l a
+conceal :: Member f l => Effect (f ':+ l) a -> Effect l a
 conceal = translate Union.conceal
 
 -- | Hides an effect @f@ by translating each instance of the effect into an
 -- equivalent effect at the head of the effect list.
-reveal :: Member f l => Effect l a -> Effect (f :+ l) a
+reveal :: Member f l => Effect l a -> Effect (f ':+ l) a
 reveal = translate Union.reveal
 
 -- | Translates the first effect in the effect list into another effect.
 --
 -- prop> rename f = eliminate return (\x k -> send (f x) >>= k) . swap . extend
-rename :: (forall r. f r -> g r) -> Effect (f :+ l) a -> Effect (g :+ l) a
+rename :: (forall r. f r -> g r) -> Effect (f ':+ l) a -> Effect (g ':+ l) a
 rename f = translate (either (Union.inject . f) Union.push . Union.pop)
 
 -- | Reorders the first two effects in a computation.
-swap :: Effect (f :+ g :+ l) a -> Effect (g :+ f :+ l) a
+swap :: Effect (f ':+ g ':+ l) a -> Effect (g ':+ f ':+ l) a
 swap = translate Union.swap
 
 -- | Rotates the first three effects in a computation.
-rotate :: Effect (f :+ g :+ h :+ l) a -> Effect (g :+ h :+ f :+ l) a
+rotate :: Effect (f ':+ g ':+ h ':+ l) a -> Effect (g ':+ h ':+ f ':+ l) a
 rotate = translate Union.rotate
 
 -- | Distributes the sub-effects of a `Union` effect across a computation.
-flatten :: Inclusive l => Effect (Union l :+ m) a -> Effect (l :++ m) a
+flatten :: Inclusive l => Effect (Union l ':+ m) a -> Effect (l :++ m) a
 flatten = translate Union.flatten
 
 -- | Collects some effects in a computation into a `Union` effect.
-unflatten :: KnownLength l => Effect (l :++ m) a -> Effect (Union l :+ m) a
+unflatten :: KnownLength l => Effect (l :++ m) a -> Effect (Union l ':+ m) a
 unflatten = translate Union.unflatten
 
 translate :: (forall r. Union l r -> Union m r) -> Effect l a -> Effect m a

@@ -29,16 +29,16 @@ instance TestEquality (Index l) where
         | i == j = Just (unsafeCoerce Refl)
         | otherwise = Nothing
 
-zero :: Index (e :+ l) e
+zero :: Index (e ':+ l) e
 zero = Index 0
 
 index :: forall e l. Member e l => Index l e
 index = Index $ natVal (Proxy :: Proxy (IndexOf e l))
 
-absurd :: Index Nil e -> a
+absurd :: Index 'Nil e -> a
 absurd (Index i) = i `seq` error "absurd Index"
 
-trivial :: Index (e :+ Nil) f -> f :~: e
+trivial :: Index (e ':+ 'Nil) f -> f :~: e
 trivial (Index i)
     | i == 0 = unsafeCoerce Refl
     | otherwise = error "non-trivial Index"
@@ -46,39 +46,39 @@ trivial (Index i)
 size :: forall l proxy. KnownLength l => proxy l -> Integer
 size _ = natVal (Proxy :: Proxy (Length l))
 
-push :: Index l e -> Index (f :+ l) e
+push :: Index l e -> Index (f ':+ l) e
 push (Index i) = Index (i + 1)
 
-pop :: Index (f :+ l) e -> Index l e
+pop :: Index (f ':+ l) e -> Index l e
 pop (Index i) = Index (i - 1)
 
-disable :: Index l e -> Index (f :- l) e
+disable :: Index l e -> Index (f ':- l) e
 disable (Index i) = Index (i + 1)
 
-enable :: Index (f :- l) e -> Index l e
+enable :: Index (f ':- l) e -> Index l e
 enable (Index i) = Index (i - 1)
 
-conceal :: forall e f l. Member f l => Index (f :+ l) e -> Index l e
+conceal :: forall e f l. Member f l => Index (f ':+ l) e -> Index l e
 conceal (Index i)
     | i == 0 = Index j
     | otherwise = Index (i - 1)
   where
     Index j = index :: Index l f
 
-reveal :: forall e f l. Member f l => Index l e -> Index (f :+ l) e
+reveal :: forall e f l. Member f l => Index l e -> Index (f ':+ l) e
 reveal (Index i)
     | i == j = Index 0
     | otherwise = Index (i + 1)
   where
     Index j = index :: Index l f
 
-swap :: Index (e :+ f :+ l) g -> Index (f :+ e :+ l) g
+swap :: Index (e ':+ f ':+ l) g -> Index (f ':+ e ':+ l) g
 swap (Index i)
     | i == 0 = Index 1
     | i == 1 = Index 0
     | otherwise = Index i
 
-rotate :: Index (e :+ f :+ g :+ l) h -> Index (f :+ g :+ e :+ l) h
+rotate :: Index (e ':+ f ':+ g ':+ l) h -> Index (f ':+ g ':+ e ':+ l) h
 rotate (Index i)
     | i == 0 = Index 2
     | i == 1 = Index 0

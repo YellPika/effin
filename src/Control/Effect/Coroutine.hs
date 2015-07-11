@@ -19,8 +19,8 @@ data Coroutine i o a = Coroutine (o -> a) i
 type instance Is Coroutine f = IsCoroutine f
 
 type family IsCoroutine f where
-    IsCoroutine (Coroutine i o) = True
-    IsCoroutine f = False
+    IsCoroutine (Coroutine i o) = 'True
+    IsCoroutine f = 'False
 
 class MemberEffect Coroutine (Coroutine i o) l => EffectCoroutine i o l
 instance MemberEffect Coroutine (Coroutine i o) l => EffectCoroutine i o l
@@ -31,7 +31,7 @@ suspend :: EffectCoroutine i o l => i -> Effect l o
 suspend = send . Coroutine id
 
 -- | Converts a `Coroutine` effect into an `Iterator`.
-runCoroutine :: Effect (Coroutine i o :+ l) a -> Effect l (Iterator i o l a)
+runCoroutine :: Effect (Coroutine i o ':+ l) a -> Effect l (Iterator i o l a)
 runCoroutine = eliminate (return . Done) (\(Coroutine f x) k -> return (Next (k . f) x))
 
 -- | A suspended computation.

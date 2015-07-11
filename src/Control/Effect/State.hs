@@ -19,7 +19,6 @@ module Control.Effect.State (
     state, withState
 ) where
 
-import Control.Applicative ((<$>))
 import Control.Monad.Effect
 
 #ifdef MTL
@@ -38,8 +37,8 @@ newtype State s a = State (s -> (a, s))
 type instance Is State f = IsState f
 
 type family IsState f where
-    IsState (State s) = True
-    IsState f = False
+    IsState (State s) = 'True
+    IsState f = 'False
 
 class MemberEffect State (State s) l => EffectState s l
 instance MemberEffect State (State s) l => EffectState s l
@@ -50,7 +49,7 @@ get = state $ \s -> (s, s)
 
 -- | Gets a value that is a function of the current state.
 gets :: EffectState s l => (s -> a) -> Effect l a
-gets f = f <$> get
+gets f = fmap f get
 
 -- | Replaces the current state.
 put :: EffectState s l => s -> Effect l ()
@@ -79,15 +78,15 @@ withState f x = modify f >> x
 
 -- | Completely handles a `State` effect by providing an
 -- initial state, and making the final state explicit.
-runState :: s -> Effect (State s :+ l) a -> Effect l (a, s)
+runState :: s -> Effect (State s ':+ l) a -> Effect l (a, s)
 runState = flip $ eliminate
     (\x s -> return (x, s))
     (\(State f) k s -> let (x, s') = f s in k x s')
 
 -- | Completely handles a `State` effect, and discards the final state.
-evalState :: s -> Effect (State s :+ l) a -> Effect l a
+evalState :: s -> Effect (State s ':+ l) a -> Effect l a
 evalState s = fmap fst . runState s
 
 -- | Completely handles a `State` effect, and discards the final value.
-execState :: s -> Effect (State s :+ l) a -> Effect l s
+execState :: s -> Effect (State s ':+ l) a -> Effect l s
 execState s = fmap snd . runState s

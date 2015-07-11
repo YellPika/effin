@@ -34,8 +34,8 @@ newtype Exception s e a = Exception (Tag s e -> a)
 type instance Is Exception f = IsException f
 
 type family IsException f where
-    IsException (Exception s e) = True
-    IsException f = False
+    IsException (Exception s e) = 'True
+    IsException f = 'False
 
 class (EffectBracket s l, MemberEffect Exception (Exception s e) l) => EffectException s e l
 instance (EffectBracket s l, MemberEffect Exception (Exception s e) l) => EffectException s e l
@@ -51,7 +51,7 @@ except :: EffectException s e l => Effect l a -> (e -> Effect l a) -> Effect l a
 except x f = sendEffect (Exception (\tag -> exceptWith tag x f))
 
 -- | Completely handles an exception effect.
-runException :: (EffectBracket s l, Show e) => Effect (Exception s e :+ l) a -> Effect l (Either e a)
+runException :: (EffectBracket s l, Show e) => Effect (Exception s e ':+ l) a -> Effect l (Either e a)
 runException effect = do
     tag <- newTag show
     exceptWith tag

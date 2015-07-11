@@ -40,8 +40,8 @@ data Witness s a where
 type instance Is Witness f = IsWitness f
 
 type family IsWitness f where
-    IsWitness (Witness s) = True
-    IsWitness f = False
+    IsWitness (Witness s) = 'True
+    IsWitness f = 'False
 
 class MemberEffect Witness (Witness s) l => EffectWitness s l
 instance MemberEffect Witness (Witness s) l => EffectWitness s l
@@ -56,7 +56,7 @@ newToken = send NewToken
 
 -- | Completely handles a `Witness` effect. The Rank-2 quantifier ensures that
 -- unique identifiers cannot escape the context in which they were created.
-runWitness :: (forall s. Effect (Witness s :+ l) a) -> Effect l a
+runWitness :: (forall s. Effect (Witness s ':+ l) a) -> Effect l a
 runWitness effect = run effect
   where
     run = eliminate return $ \NewToken k ->

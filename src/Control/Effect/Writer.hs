@@ -19,9 +19,10 @@ module Control.Effect.Writer (
 ) where
 
 import Control.Monad.Effect
-import Control.Applicative ((<$>))
 import Control.Arrow (second)
+#if !MIN_VERSION_base(4, 8, 0)
 import Data.Monoid (Monoid (..))
+#endif
 import Control.Effect.State
 
 #ifdef MTL
@@ -41,8 +42,8 @@ data Writer w a where
 type instance Is Writer f = IsWriter f
 
 type family IsWriter f where
-    IsWriter (Writer w) = True
-    IsWriter f = False
+    IsWriter (Writer w) = 'True
+    IsWriter f = 'False
 
 class (Monoid w, MemberEffect Writer (Writer w) l) => EffectWriter w l
 instance (Monoid w, MemberEffect Writer (Writer w) l) => EffectWriter w l
@@ -79,17 +80,17 @@ censor f effect = pass $ do
     return (a, f)
 
 -- | Executes a writer computation which sends its output to a state effect.
-stateWriter :: (Monoid s, EffectState s l) => Effect (Writer s :+ l) a -> Effect l a
+stateWriter :: (Monoid s, EffectState s l) => Effect (Writer s ':+ l) a -> Effect l a
 stateWriter = eliminate return (\(Tell l) k -> modify (mappend l) >> k ())
 
 -- | Completely handles a writer effect. The writer value must be a `Monoid`.
 -- `mempty` is used as an initial value, and `mappend` is used to combine values.
 -- Returns the result of the computation and the final output value.
-runWriter :: Monoid w => Effect (Writer w :+ l) a -> Effect l (a, w)
+runWriter :: Monoid w => Effect (Writer w ':+ l) a -> Effect l (a, w)
 runWriter = eliminate point bind
 
 point :: Monoid w => a -> Effect l (a, w)
 point x = return (x, mempty)
 
 bind :: Monoid w => Writer w a -> (a -> Effect l (b, w)) -> Effect l (b, w)
-bind (Tell l) k = second (mappend l) <$> k ()
+bind (Tell l) k = second (mappend l) `fmap` k ()

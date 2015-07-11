@@ -12,7 +12,6 @@ module Control.Effect.Thread (
 
 import Control.Effect.Lift
 import Control.Monad.Effect
-import Control.Applicative ((<$>))
 import Control.Monad (void)
 import qualified Control.Concurrent as IO
 
@@ -36,7 +35,7 @@ abort = send Abort
 
 -- | Executes a threaded computation synchronously.
 -- Completes when the main thread exits.
-runMain :: Effect (Thread :+ l) () -> Effect l ()
+runMain :: Effect (Thread ':+ l) () -> Effect l ()
 runMain = run [] . toAST
   where
     run auxThreads thread = do
@@ -55,12 +54,12 @@ runMain = run [] . toAST
         result <- thread
         case result of
             AbortAST -> runAll xs
-            YieldAST k -> (k:) <$> runAll xs
-            ForkAST child parent -> (parent:) <$> runAll (child:xs)
+            YieldAST k -> fmap (k:) (runAll xs)
+            ForkAST child parent -> fmap (parent:) (runAll (child:xs))
 
 -- | Executes a threaded computation synchronously.
 -- Does not complete until all threads have exited.
-runSync :: Effect (Thread :+ l) () -> Effect l ()
+runSync :: Effect (Thread ':+ l) () -> Effect l ()
 runSync = run . (:[]) . toAST
   where
     run [] = return ()
@@ -72,7 +71,7 @@ runSync = run . (:[]) . toAST
             ForkAST child parent -> run (child:xs ++ [parent])
 
 -- | Executes a threaded computation asynchronously.
-runAsync :: Effect (Thread :+ Lift IO :+ Nil) () -> IO ()
+runAsync :: Effect (Thread ':+ Lift IO ':+ 'Nil) () -> IO ()
 runAsync = run . toAST
   where
     run thread = do
@@ -94,7 +93,7 @@ data ThreadAST l
 -- Converts a threaded computation into its corresponding AST. This allows
 -- different backends to interpret calls to fork/yield/abort as they please. See
 -- the implementations of runAsync, runSync, and runMain.
-toAST :: Effect (Thread :+ l) () -> Effect l (ThreadAST l)
+toAST :: Effect (Thread ':+ l) () -> Effect l (ThreadAST l)
 toAST = eliminate (\_ -> return AbortAST) bind
   where
     bind Abort _ = return AbortAST

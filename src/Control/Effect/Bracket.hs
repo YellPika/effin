@@ -14,7 +14,6 @@ module Control.Effect.Bracket (
     Handler, exceptAny, bracket, finally
 ) where
 
-import Control.Applicative ((<$>))
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Type.Equality ((:~:) (..), TestEquality (..))
 import Control.Effect.Witness
@@ -35,8 +34,8 @@ instance TestEquality (Tag s) where
 type instance Is Bracket f = IsBracket f
 
 type family IsBracket f where
-    IsBracket (Bracket s) = True
-    IsBracket f = False
+    IsBracket (Bracket s) = 'True
+    IsBracket f = 'False
 
 class MemberEffect Bracket (Bracket s) l => EffectBracket s l
 instance MemberEffect Bracket (Bracket s) l => EffectBracket s l
@@ -44,7 +43,7 @@ instance MemberEffect Bracket (Bracket s) l => EffectBracket s l
 -- | Creates a new tag. The function parameter describes the error message that
 -- is shown in the case of an uncaught exception.
 newTag :: EffectBracket s l => (a -> String) -> Effect l (Tag s a)
-newTag toString = conceal $ Tag toString <$> rename BWitness newToken
+newTag toString = conceal $ fmap (Tag toString) (rename BWitness newToken)
 
 -- | Raises an exception of the specified class and value.
 raiseWith :: EffectBracket s l => Tag s b -> b -> Effect l a
@@ -66,7 +65,7 @@ data Handler s l a where
 -- because @h2@ could catch exceptions thrown by @h1@.
 exceptAny :: EffectBracket s l => Effect l a -> [Handler s l a] -> Effect l a
 exceptAny effect handlers = effect `exceptAll` \i x ->
-    let try (Handler j f) = (\Refl -> f x) <$> testEquality i j
+    let try (Handler j f) = fmap (\Refl -> f x) (testEquality i j)
         results = mapMaybe try handlers
     in fromMaybe (raiseWith i x) (listToMaybe results)
 
@@ -108,10 +107,10 @@ finally effect finalizer = bracket
 
 -- | Executes a `Bracket` effect. The Rank-2 type ensures that `Tag`s do not
 -- escape their scope.
-runBracket :: (forall s. Effect (Bracket s :+ l) a) -> Effect l a
+runBracket :: (forall s. Effect (Bracket s ':+ l) a) -> Effect l a
 runBracket effect = runWitness (convert effect)
 
-convert :: Effect (Bracket s :+ l) a -> Effect (Witness s :+ l) a
+convert :: Effect (Bracket s ':+ l) a -> Effect (Witness s ':+ l) a
 convert =
     eliminate
         return

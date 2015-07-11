@@ -30,8 +30,8 @@ newtype Lift m a = Lift { unLift :: m a }
 type instance Is Lift f = IsLift f
 
 type family IsLift f where
-    IsLift (Lift m) = True
-    IsLift f = False
+    IsLift (Lift m) = 'True
+    IsLift f = 'False
 
 class (Monad m, MemberEffect Lift (Lift m) l) => EffectLift m l
 instance (Monad m, MemberEffect Lift (Lift m) l) => EffectLift m l
@@ -46,7 +46,7 @@ liftEffect = sendEffect . Lift
 
 -- | Converts a computation containing only monadic
 -- effects into a monadic computation.
-runLift :: Monad m => Effect (Lift m :+ Nil) a -> m a
+runLift :: Monad m => Effect (Lift m ':+ 'Nil) a -> m a
 runLift = runEffect . eliminate
     (return . return)
     (\(Lift m) k -> return $ m >>= runEffect . k)

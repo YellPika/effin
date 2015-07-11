@@ -16,7 +16,7 @@ module Control.Effect.List (
 
 import Control.Monad.Effect
 import Control.Arrow (second)
-import Control.Applicative (Alternative (..), (<$>))
+import Control.Applicative (Alternative (..))
 import Control.Monad (MonadPlus (..), (<=<), join)
 
 -- | A nondeterminism (backtracking) effect.
@@ -25,8 +25,8 @@ newtype List a = List [a]
 type instance Is List f = IsList f
 
 type family IsList f where
-    IsList List = True
-    IsList f = False
+    IsList List = 'True
+    IsList f = 'False
 
 class Member List l => EffectList l
 instance Member List l => EffectList l
@@ -45,8 +45,8 @@ select = join . choose
 
 -- | Obtains all possible values from a computation
 -- parameterized by a nondeterminism effect.
-runList :: Effect (List :+ l) a -> Effect l [a]
-runList = eliminate (return . return) (\(List xs) k -> concat <$> mapM k xs)
+runList :: Effect (List ':+ l) a -> Effect l [a]
+runList = eliminate (return . return) (\(List xs) k -> fmap concat (mapM k xs))
 
 instance EffectList l => Alternative (Effect l) where
     empty = never
@@ -76,7 +76,7 @@ cutFalse = send CutFalse
 
 -- | Handles the `Cut` effect. `cut`s have no effect beyond
 -- the scope of the computation passed to this function.
-runCut :: EffectList l => Effect (Cut :+ l) a -> Effect l a
+runCut :: EffectList l => Effect (Cut ':+ l) a -> Effect l a
 runCut = choose . snd <=< reifyCut
   where
     -- Gather the results of a computation into a list (like in runList), but
@@ -86,7 +86,7 @@ runCut = choose . snd <=< reifyCut
     -- get a list of computations. We can now execute each computation one by
     -- one, and inspect the Bool after each computation to determine when we
     -- should stop.
-    reifyCut :: EffectList l => Effect (Cut :+ l) a -> Effect l (Bool, [a])
+    reifyCut :: EffectList l => Effect (Cut ':+ l) a -> Effect l (Bool, [a])
     reifyCut =
         intercept return (\(List xs) k -> runAll (map k xs)) .
         eliminate
@@ -98,4 +98,4 @@ runCut = choose . snd <=< reifyCut
         (cutRequested, x') <- x
         if cutRequested
         then return (True, x')
-        else second (x' ++) <$> runAll xs
+        else fmap (second (x' ++)) (runAll xs)
