@@ -15,7 +15,7 @@ For example, the following code implements a handler for exceptions:
     runException :: Effect (Exception e :+ es) a -> Effect es (Either e a)
     runException = eliminate
         (\x -> return (Right x))
-        (\(Throw e) -> return (Left e))
+        (\(Throw e) k -> return (Left e))
 
 Compare this to the corresponding code in extensible-effects
 (http://hackage.haskell.org/package/extensible-effects):
