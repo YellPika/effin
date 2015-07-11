@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -24,9 +23,9 @@ import Control.Monad.Effect
 import Data.Type.Row
 import qualified Control.Monad.Error.Class as E
 
--- instance (Member (Exception s e) l, Exception s e ~ InstanceOf (Exception s) l) => E.MonadError e (Effect l) where
---     throwError = raise
---     catchError = except
+instance (EffectBracket s l, Member (Exception s e) l, Exception s e ~ InstanceOf Exception l) => E.MonadError e (Effect l) where
+    throwError = raise
+    catchError = except
 #endif
 
 -- | An effect that describes the possibility of failure.
