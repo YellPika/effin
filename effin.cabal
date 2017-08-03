@@ -1,5 +1,5 @@
 name:                effin
-version:             0.3.0.2
+version:             0.3.0.3
 synopsis:            A Typeable-free implementation of extensible effects
 homepage:            https://github.com/YellPika/effin
 license:             BSD3
@@ -66,7 +66,7 @@ library
     Data.Type.Nat
     Data.Union
 
-  build-depends: base >= 4.7 && < 4.10
+  build-depends: base >= 4.7 && < 4.11
   if flag(mtl)
     build-depends: mtl >= 2.1 && < 3
 
